@@ -1,104 +1,103 @@
 "use client";
 
-import { useState } from "react";
-import type { Appearance } from "@/walk/content";
+import { getCharacter } from "@/walk/content";
+import { NEED_INFO, NEEDS } from "@/walk/life";
 import { Portrait } from "../Portrait";
 import { RefLink } from "../Scripture";
 
-const SKINS = ["#d9a87e", "#c48b62", "#b07a52", "#a9734d", "#8d5a3b", "#7a4a30", "#5c3a26"];
-const ROBES = ["#6c7c8c", "#8f7454", "#9b4a2e", "#5f7a5a", "#cbb68c", "#56617a", "#8a5a6a"];
-const HAIR = ["#1d1510", "#3b2b1f", "#6a4a2a", "#9a948c"];
-const STYLES = [
-  { id: "beard", label: "Beard", apply: (a: Appearance): Appearance => ({ ...a, beard: "short", headcloth: undefined }) },
-  { id: "clean", label: "No beard", apply: (a: Appearance): Appearance => ({ ...a, beard: "none", headcloth: undefined }) },
-  { id: "covered", label: "Head covering", apply: (a: Appearance): Appearance => ({ ...a, beard: "none", headcloth: "#d9cdb0" }) },
+const MENTORS = [
+  { id: "jesus", path: "teaches you to pray, as He taught His friends." },
+  { id: "peter", path: "walks with you in faith, courage and getting back up after a fall." },
+  { id: "matthew", path: "shows you what money, stewardship and cheerful giving look like." },
 ];
 
-export const DEFAULT_APPEARANCE: Appearance = { skin: "#a9734d", hair: "#2b1d14", beard: "short", robe: "#6c7c8c", sash: "#c99b5a" };
-
-function Swatches({ label, colors, value, onPick }: { label: string; colors: string[]; value: string; onPick: (c: string) => void }) {
+/** How to get around: walking, turning the view, talking, and doing things in the world. */
+export function HowToWalk() {
   return (
-    <fieldset>
-      <legend className="mb-1 text-xs font-semibold text-muted">{label}</legend>
-      <div className="flex flex-wrap gap-1.5">
-        {colors.map((c) => (
-          <button
-            key={c}
-            type="button"
-            onClick={() => onPick(c)}
-            aria-label={`${label} ${c}`}
-            aria-pressed={value === c}
-            className={`h-7 w-7 rounded-full border-2 ${value === c ? "border-brand ring-2 ring-gold/60" : "border-line"}`}
-            style={{ background: c }}
-          />
-        ))}
-      </div>
-    </fieldset>
+    <ul className="space-y-1.5 text-sm">
+      <li>
+        🚶 Walk with <Kbd>W</Kbd> <Kbd>A</Kbd> <Kbd>S</Kbd> <Kbd>D</Kbd> or the arrow keys: up always walks away from
+        you, into the view, whichever way it faces. On a phone or tablet, tap where you want to go.
+      </li>
+      <li>
+        🔄 Turn the view with <Kbd>[</Kbd> <Kbd>]</Kbd>, the ⟲ ⟳ buttons, or by dragging; zoom with <Kbd>+</Kbd>{" "}
+        <Kbd>−</Kbd>, the scroll wheel or a pinch.
+      </li>
+      <li>
+        💬 Press <Kbd>E</Kbd>, or tap someone, to talk. Mentors with a lesson for you have a ✦ by their name.
+      </li>
+      <li>🙏 Walk up to a place to pray, read the scroll, share a meal, lend a hand or rest. A button appears when you can.</li>
+    </ul>
   );
 }
 
-/** First visit: where you are, how to move, and how you look. Also reachable later to change appearance. */
-export function WelcomePanel({
-  appearance,
-  firstVisit,
-  onDone,
-}: {
-  appearance: Appearance;
-  firstVisit: boolean;
-  onDone: (appearance: Appearance) => void;
-}) {
-  const [look, setLook] = useState<Appearance>(appearance);
-  const style = look.headcloth ? "covered" : look.beard === "none" ? "clean" : "beard";
+function Kbd({ children }: { children: React.ReactNode }) {
+  return <kbd className="rounded border border-line bg-surface-2 px-1 font-mono text-[11px]">{children}</kbd>;
+}
+
+/** The first thing a new player sees: where they are, how to walk, the five needs and the mentors. */
+export function WelcomePanel({ onContinue }: { onContinue: () => void }) {
   return (
     <div className="space-y-5">
-      {firstVisit && (
-        <header className="space-y-2">
-          <p className="text-xs font-semibold tracking-wider text-gold uppercase">Welcome</p>
-          <h2 className="font-serif text-2xl leading-tight font-semibold">Capernaum, by the Sea of Galilee</h2>
-          <p className="leading-relaxed">
-            Jesus left Nazareth and made this lakeside town His home (<RefLink refText="Matthew 4:13" />). Walk the shore,
-            meet the people who followed Him, and learn from them: Jesus on prayer, Peter on faith, Matthew on
-            generosity.
-          </p>
-          <ul className="space-y-1 text-sm text-muted">
-            <li>🚶 Walk with the arrow keys or WASD, or tap where you want to go.</li>
-            <li>💬 Press E, or tap someone, to talk. Mentors with a lesson for you have a ✦ by their name.</li>
-            <li>📖 Check in each day for a verse, and write in your Walk Journal any time.</li>
-          </ul>
-        </header>
-      )}
+      <header className="space-y-2">
+        <p className="text-xs font-semibold tracking-wider text-gold uppercase">Welcome</p>
+        <h2 className="font-serif text-2xl leading-tight font-semibold">Capernaum, by the Sea of Galilee</h2>
+        <p className="leading-relaxed">
+          Jesus left Nazareth and made this lakeside town His home (<RefLink refText="Matthew 4:13" />). Here the
+          fishermen are at their nets by dawn, the market fills by mid-morning, Jesus teaches the crowds by the shore,
+          and friends share bread around Peter&apos;s table as the sun goes down. Come and live here alongside them.
+        </p>
+      </header>
 
-      <section className="space-y-3 rounded-xl border border-line bg-surface p-4">
-        <div className="flex items-center gap-3">
-          <Portrait appearance={look} size={64} />
-          <div>
-            <h3 className="font-semibold">How you look</h3>
-            <p className="text-xs text-muted">Just for fun: you can change this later.</p>
-          </div>
-        </div>
-        <Swatches label="Skin" colors={SKINS} value={look.skin} onPick={(skin) => setLook({ ...look, skin })} />
-        <Swatches label="Hair" colors={HAIR} value={look.hair} onPick={(hair) => setLook({ ...look, hair })} />
-        <Swatches label="Robe" colors={ROBES} value={look.robe} onPick={(robe) => setLook({ ...look, robe })} />
-        <fieldset>
-          <legend className="mb-1 text-xs font-semibold text-muted">Style</legend>
-          <div className="flex flex-wrap gap-1.5">
-            {STYLES.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                aria-pressed={style === s.id}
-                onClick={() => setLook(s.apply(look))}
-                className={`rounded-full border px-3 py-1 text-xs font-medium ${style === s.id ? "border-brand bg-brand-soft" : "border-line"}`}
-              >
-                {s.label}
-              </button>
-            ))}
-          </div>
-        </fieldset>
+      <section className="space-y-2">
+        <h3 className="text-xs font-semibold tracking-wider text-gold uppercase">Getting around</h3>
+        <HowToWalk />
       </section>
 
-      <button onClick={() => onDone(look)} className="btn-primary w-full">
-        {firstVisit ? "Begin your walk" : "Done"}
+      <section className="space-y-2">
+        <h3 className="text-xs font-semibold tracking-wider text-gold uppercase">Your walk with God</h3>
+        <p className="text-sm leading-relaxed">
+          Five small meters show how your walk is going. Each grows when you do something that feeds it, and fades
+          gently as the days pass. They&apos;re an invitation, never a score.
+        </p>
+        <ul className="grid grid-cols-1 gap-1.5 text-sm sm:grid-cols-2">
+          {NEEDS.map((n) => (
+            <li key={n} className="flex items-start gap-2 rounded-lg bg-surface-2/60 px-2.5 py-1.5">
+              <span aria-hidden>{NEED_INFO[n].icon}</span>
+              <span>
+                <strong>{NEED_INFO[n].label}</strong>
+                <span className="block text-xs text-muted">{NEED_INFO[n].hint}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="space-y-2">
+        <h3 className="text-xs font-semibold tracking-wider text-gold uppercase">Your mentors</h3>
+        <ul className="space-y-2">
+          {MENTORS.map(({ id, path }) => {
+            const c = getCharacter(id)!;
+            return (
+              <li key={id} className="flex items-center gap-3">
+                <Portrait appearance={c.appearance} size={40} className="shrink-0" />
+                <p className="text-sm">
+                  <strong>{c.shortName}</strong> {path}
+                  <span className="block text-xs text-muted">{c.title}</span>
+                </p>
+              </li>
+            );
+          })}
+        </ul>
+        <p className="text-sm text-muted">
+          Each keeps a daily routine: look for them at prayer before dawn, at the nets, at the market, listening by the
+          shore, and at supper in Peter&apos;s courtyard. 📖 Check in each day for a verse, and write in your Walk
+          Journal any time.
+        </p>
+      </section>
+
+      <button onClick={onContinue} className="btn-primary w-full">
+        Create your character →
       </button>
     </div>
   );

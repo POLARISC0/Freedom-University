@@ -5,7 +5,7 @@
 import * as THREE from "three";
 import { hash2 } from "@/walk/world/noise";
 import type { WorldObject } from "@/walk/world/types";
-import { FACE, VoxelBuilder, type Vec3 } from "./builder";
+import { VoxelBuilder, type Vec3 } from "./builder";
 import { footprintBase, heightAt, WATER_LEVEL, type HeightField } from "./heights";
 
 export interface FloatingPiece {
@@ -40,12 +40,12 @@ export interface ObjectLayers {
   /** Market stalls by day (awnings out, goods on show) and by night (awnings rolled, goods covered). */
   open: VoxelBuilder;
   closed: VoxelBuilder;
+  /** Boats, each its own piece so the ones out on the water can bob and sway. */
   floating: FloatingPiece[];
   flames: FlamePiece[];
   lights: LightSource[];
 }
 
-const WOOD = 0xffffff;
 const DARK_WOOD = 0xb89a80;
 const TERRACOTTA = 0xb8693e;
 const LEAF_OLIVE = 0x93a86a;
@@ -513,15 +513,16 @@ function palm(b: VoxelBuilder, v: number) {
   }
   const crown: Vec3 = [x, height, 0];
   b.box("leaves", [crown[0] - 0.16, height - 0.1, -0.16], [crown[0] + 0.16, height + 0.18, 0.16], 0x5a8a38, { sway: 0.85 });
-  // Fronds radiating from the crown, drooping in steps.
+  // Fronds arching out from the crown: rising a little, then drooping, widest in the middle.
   const fronds = 7;
   for (let f = 0; f < fronds; f++) {
     const a = (f / fronds) * Math.PI * 2 + 0.3;
     b.push(new THREE.Matrix4().makeRotationY(a).setPosition(crown[0], crown[1], crown[2]));
-    for (let i = 0; i < 4; i++) {
-      const x0 = 0.1 + i * 0.32;
-      const drop = 0.05 * i * i + 0.04 * i;
-      b.box("leaves", [x0, -drop, -0.12 + i * 0.01], [x0 + 0.36, -drop + 0.06, 0.12 - i * 0.01], i % 2 ? LEAF_PALM : 0x7aac4e, { sway: 0.9 + i * 0.1, bottom: true });
+    for (let i = 0; i < 5; i++) {
+      const x0 = 0.08 + i * 0.26;
+      const y = 0.1 * i - 0.06 * i * i;
+      const half = [0.06, 0.12, 0.15, 0.12, 0.07][i];
+      b.box("leaves", [x0, y - 0.03, -half], [x0 + 0.32, y + 0.04, half], i % 2 ? LEAF_PALM : 0x7aac4e, { sway: 0.85 + i * 0.1, bottom: true });
     }
     b.pop();
   }
@@ -753,4 +754,3 @@ function shadeHex(color: number, k: number): number {
   return (ch(16) << 16) | (ch(8) << 8) | ch(0);
 }
 
-export { FACE };

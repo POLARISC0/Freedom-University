@@ -32,7 +32,8 @@ export interface Actor {
   previous: Motion;
   blend: number;
   phase: number;
-  last: { x: number; y: number } | null;
+  /** Where they were last frame, to see which way they're walking; `seen` is false until the first frame. */
+  last: { x: number; y: number; seen: boolean };
   shown: boolean;
 }
 
@@ -50,6 +51,7 @@ export class Crowd {
   readonly player: Actor;
   private crowdMesh: THREE.SkinnedMesh;
   private playerMesh: THREE.SkinnedMesh;
+  private playerLook: string;
   private time = 0;
 
   constructor(
@@ -77,6 +79,7 @@ export class Crowd {
     const playerBones = createBones(puppetKind(appearance));
     this.player = this.actor("player", player, null, puppetKind(appearance), playerBones, npcs.length + 1);
     this.playerMesh = this.buildPlayerMesh(appearance, playerBones, shadows);
+    this.playerLook = JSON.stringify(appearance);
     this.group.add(this.playerMesh);
   }
 
@@ -94,7 +97,7 @@ export class Crowd {
       previous: "stand",
       blend: 1,
       phase: 0,
-      last: null,
+      last: { x: 0, y: 0, seen: false },
       shown: true,
     };
   }
@@ -123,6 +126,9 @@ export class Crowd {
 
   /** Rebuild the player's figure with a new look, keeping where they are and what they're doing. */
   setPlayerAppearance(appearance: Appearance) {
+    const look = JSON.stringify(appearance);
+    if (look === this.playerLook) return;
+    this.playerLook = look;
     const shadows = this.playerMesh.castShadow;
     this.group.remove(this.playerMesh);
     this.playerMesh.geometry.dispose();
@@ -150,19 +156,21 @@ export class Crowd {
     if (!visible) {
       if (a.shown) root.scale.setScalar(0);
       a.shown = false;
-      a.last = null;
+      a.last.seen = false;
       return;
     }
     if (!a.shown) root.scale.setScalar(1);
     a.shown = true;
 
     // Turn smoothly towards the way they're walking, or the way they face when still.
-    const moved = a.last ? Math.hypot(w.pos.x - a.last.x, w.pos.y - a.last.y) : 0;
+    const firstFrame = !a.last.seen;
+    const moved = firstFrame ? 0 : Math.hypot(w.pos.x - a.last.x, w.pos.y - a.last.y);
     let wantYaw = FACING_YAW[w.facing] ?? a.yaw;
-    if (w.moving && a.last && moved > 1e-4) wantYaw = Math.atan2(w.pos.x - a.last.x, w.pos.y - a.last.y);
-    const firstFrame = a.last === null;
+    if (w.moving && moved > 1e-4) wantYaw = Math.atan2(w.pos.x - a.last.x, w.pos.y - a.last.y);
     a.yaw = firstFrame ? wantYaw : a.yaw + angleDelta(a.yaw, wantYaw) * (1 - Math.exp(-12 * dt));
-    a.last = { x: w.pos.x, y: w.pos.y };
+    a.last.x = w.pos.x;
+    a.last.y = w.pos.y;
+    a.last.seen = true;
 
     // What they're doing, blending from one motion into the next.
     const motion: Motion = w.moving ? "walk" : ((w.pose as Pose) ?? "stand");
@@ -188,13 +196,6 @@ export class Crowd {
   /** Top of an actor's head, for name tags. */
   headHeight(a: Actor): number {
     return a.motion === "sleep" ? 0.5 : a.motion === "sit" || a.motion === "kneel" ? puppetHeight(a.kind) * 0.65 : puppetHeight(a.kind);
-  }
-
-  setShadows(enabled: boolean) {
-    for (const m of [this.crowdMesh, this.playerMesh]) {
-      m.castShadow = enabled;
-      m.receiveShadow = enabled;
-    }
   }
 
   dispose() {

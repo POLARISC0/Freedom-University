@@ -199,6 +199,12 @@ body {
   outline: 2px solid #ffe08a;
   outline-offset: 2px;
 }
+/* On narrow phones, sit above the "Talk to…" button that appears centred at the bottom. */
+@media (max-width: 639px) {
+  .walk-game .walk-camera-controls {
+    bottom: calc(4.75rem + env(safe-area-inset-bottom, 0px));
+  }
+}
 
 .walk-theme .btn-primary {
   @apply inline-flex items-center justify-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-brand-ink shadow-sm transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50;

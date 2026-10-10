@@ -6,9 +6,11 @@ import {
   isPlausibleDay,
   JournalSchema,
   readChoices,
+  readLifeInput,
   ReflectionSchema,
 } from "@/walk/action-rules";
 import { getLesson } from "@/walk/content";
+import type { LifeState } from "@/walk/life";
 import { canMoveTo, type CheckInView, type JournalEntryView, type LessonProgressView } from "@/walk/progress";
 import { change, current, newId, persist } from "./session";
 
@@ -159,6 +161,14 @@ export async function saveCheckIn(
   const entry =
     addToJournal && note ? addEntry({ kind: "prayer", title: `Check-in, ${day}`, body: note, lessonSlug: null }) : null;
   return { ok: true, data: { checkIn, entry } };
+}
+
+export async function saveLife(input: unknown): Promise<ActionResult<LifeState>> {
+  const life = readLifeInput(input);
+  if (!life) return fail(ACTION_MESSAGES.badLife);
+  change({ life });
+  persist((s) => s.saveLife(life));
+  return { ok: true, data: life };
 }
 
 /** There is no account to leave in the preview. */

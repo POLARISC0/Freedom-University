@@ -4,7 +4,7 @@ import { BOOK_DATA } from "@/walk/scripture/book-data";
 import { findReferences, parseReference } from "@/walk/scripture/references";
 import { CHARACTERS, DAILY_VERSES, LESSONS, LOCATIONS, PATHS } from "@/walk/content";
 import { MOOD_VERSES } from "@/walk/content/checkin";
-import { ACTIVITIES, allNudges, NEED_INFO, relationshipLevels } from "@/walk/life";
+import { ACTIVITIES, allNudges, BADGES, NEED_INFO, relationshipLevels } from "@/walk/life";
 import { ENCOURAGEMENT_VERSE } from "@/walk/progress";
 import type { DialogueLine, Passage } from "@/walk/content";
 
@@ -123,6 +123,7 @@ export function collectQuoteChecks(): QuoteCheck[] {
   for (const a of ACTIVITIES) passage(`activity ${a.id}`, a.passage);
   for (const n of allNudges()) passage(`need nudge ${n.need}`, n.passage);
   for (const info of Object.values(NEED_INFO)) quotes(`need ${info.id}`, info.summary, [info.ref]);
+  for (const badge of BADGES) quotes(`badge ${badge.id}`, badge.description, [badge.ref]);
   for (const id of ["jesus", "peter"]) {
     for (const level of relationshipLevels(id)) quotes(`friendship ${id} ${level.label}`, level.description, refsIn(level.description));
   }

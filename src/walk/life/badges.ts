@@ -102,7 +102,8 @@ export const BADGES: BadgeDef[] = [
     description: "Checked in on seven days.",
     icon: "🌱",
     ref: "Luke 16:10",
-    earned: (ctx) => Math.max(count(ctx, "checkin"), ctx.checkIns.length) >= 7,
+    // Counted from the check-ins themselves, one per day, so changing a day's check-in never counts twice.
+    earned: (ctx) => new Set(ctx.checkIns.map((c) => c.day)).size >= 7,
   },
   {
     id: "journal-keeper",
@@ -116,7 +117,7 @@ export const BADGES: BadgeDef[] = [
   {
     id: "friend-of-jesus",
     title: "Friend of Jesus",
-    description: "Spent time with Jesus until He called you friend.",
+    description: "Spent time with Jesus, who calls those who follow Him His friends.",
     icon: "💛",
     ref: "John 15:15",
     earned: friendOf("jesus"),

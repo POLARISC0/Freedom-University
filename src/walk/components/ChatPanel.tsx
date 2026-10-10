@@ -17,18 +17,21 @@ interface Message {
 
 /**
  * A conversation with an AI character. `lessonSlug` scopes it to a lesson (so the character knows what it is
- * teaching); without one it's a free conversation.
+ * teaching); without one it's a free conversation. `onMessageSent` hears about each message the character received
+ * (the game counts them toward friendship).
  */
 export function ChatPanel({
   character,
   lessonSlug,
   intro,
   suggestions,
+  onMessageSent,
 }: {
   character: Character;
   lessonSlug?: string;
   intro?: string;
   suggestions: string[];
+  onMessageSent?: () => void;
 }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -98,6 +101,7 @@ export function ChatPanel({
         }
         throw new Error(body.error ?? `Request failed (${res.status})`);
       }
+      onMessageSent?.();
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       for (;;) {

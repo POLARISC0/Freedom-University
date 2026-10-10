@@ -2,6 +2,7 @@
 
 import type { z } from "zod";
 import { redirect } from "next/navigation";
+import type { Prisma } from "@/generated/prisma/client";
 import { endSession, getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { getLesson } from "@/walk/content";
@@ -12,8 +13,10 @@ import {
   isPlausibleDay,
   JournalSchema,
   readChoices,
+  readLifeInput,
   ReflectionSchema,
 } from "@/walk/action-rules";
+import type { LifeState } from "@/walk/life";
 import { canMoveTo, type CheckInView, type JournalEntryView, type LessonProgressView } from "@/walk/progress";
 import { toJournalView, toProgressView } from "@/walk/server/data";
 
@@ -178,6 +181,21 @@ export async function saveCheckIn(
     ok: true,
     data: { checkIn: { day: checkIn.day, mood, note: checkIn.note }, entry: entry ? toJournalView(entry) : null },
   };
+}
+
+/**
+ * Save the player's life in the world: their character, needs, friendships and badges. The game sends the whole
+ * life a few seconds after it changes; it is checked field by field, and anything that isn't a life is refused.
+ */
+export async function saveLife(input: unknown): Promise<ActionResult<LifeState>> {
+  const user = await getCurrentUser();
+  if (!user) return fail(SIGN_IN);
+  const life = readLifeInput(input);
+  if (!life) return fail(ACTION_MESSAGES.badLife);
+  // parseLife returns plain JSON data: strings, finite numbers, booleans, arrays and objects.
+  const data = life as unknown as Prisma.InputJsonObject;
+  await db.walkLife.upsert({ where: { userId: user.id }, create: { userId: user.id, data }, update: { data } });
+  return { ok: true, data: life };
 }
 
 export async function signOutOfWalk(): Promise<void> {

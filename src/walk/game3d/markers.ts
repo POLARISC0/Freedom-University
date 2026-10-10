@@ -2,26 +2,39 @@
 // rest or help, a ring where you tapped, and the round shadows that keep everyone standing on the ground.
 
 import * as THREE from "three";
+import { getActivity } from "@/walk/life/activities";
+import { NEED_INFO } from "@/walk/life/needs";
+import type { Need } from "@/walk/life/types";
 import { VoxelBuilder } from "./builder";
 import { makeGlowTexture } from "./textures";
 
 const MAX_RINGS = 24;
+const DEFAULT_RING = 0xf2d68a;
+const ringColors = new Map<string, number>();
 
-/** Ring colours by the need an activity feeds; anything else glows a soft gold. */
-const ACTIVITY_COLORS: Record<string, number> = {
-  pray: 0xf2c96a,
-  read: 0x9ec8ff,
-  rest: 0xb8a6ff,
-  help: 0x8ee0a0,
-  serve: 0x8ee0a0,
-  meal: 0xffb38a,
-  fellowship: 0xffb38a,
-  worship: 0xf6e08a,
-};
-
+/**
+ * A ring's colour: the colour of the need its activity feeds most (the same as that need's meter in the HUD),
+ * lightened so it glows. Anything unknown glows a soft gold.
+ */
 export function activityColor(activity: string): number {
-  const key = Object.keys(ACTIVITY_COLORS).find((k) => activity.startsWith(k));
-  return key ? ACTIVITY_COLORS[key] : 0xf2d68a;
+  let color = ringColors.get(activity);
+  if (color === undefined) {
+    color = needColor(activity);
+    ringColors.set(activity, color);
+  }
+  return color;
+}
+
+function needColor(activity: string): number {
+  const def = getActivity(activity);
+  const gains = def ? (Object.entries(def.needs) as [Need, number][]).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]) : [];
+  if (gains.length === 0) return DEFAULT_RING;
+  const c = parseInt(NEED_INFO[gains[0][0]].color.slice(1), 16);
+  const lift = (shift: number) => {
+    const v = (c >> shift) & 255;
+    return Math.round(v + (255 - v) * 0.35);
+  };
+  return (lift(16) << 16) | (lift(8) << 8) | lift(0);
 }
 
 export class Markers {
@@ -30,6 +43,7 @@ export class Markers {
   private blobTexture = makeGlowTexture(32);
   private quest: THREE.Group;
   private questGem: THREE.Mesh;
+  private questHalo: THREE.Sprite;
   private questMaterial = new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false });
   private questRing: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>;
   private rings: THREE.InstancedMesh;
@@ -55,7 +69,12 @@ export class Markers {
     ];
     for (const [y0, y1, r] of layers) b.box("gem", [-r, y0, -r], [r, y1, r], y0 < 0.3 ? 0xf0a830 : 0xffe080, { bottom: true });
     this.questGem = new THREE.Mesh(b.build().get("gem")!, this.questMaterial);
-    this.questGem.position.y = 2.1;
+    this.questGem.position.y = 2;
+    // A soft halo round the gem, so it catches the eye from across town.
+    this.questHalo = new THREE.Sprite(
+      new THREE.SpriteMaterial({ map: this.blobTexture, color: 0xffd36a, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }),
+    );
+    this.questHalo.scale.setScalar(1.6);
     this.questRing = new THREE.Mesh(
       this.plane,
       new THREE.MeshBasicMaterial({ map: this.ringTexture, color: 0xffd36a, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }),
@@ -63,7 +82,7 @@ export class Markers {
     this.questRing.scale.setScalar(2.4);
     this.questRing.position.y = 0.04;
     this.quest = new THREE.Group();
-    this.quest.add(this.questGem, this.questRing);
+    this.quest.add(this.questGem, this.questHalo, this.questRing);
     this.quest.visible = false;
     this.group.add(this.quest);
 
@@ -110,8 +129,10 @@ export class Markers {
     this.quest.visible = Boolean(at);
     if (!at) return;
     this.quest.position.copy(at);
-    this.questGem.position.y = 2.1 + Math.sin(t * 2.6) * 0.15;
+    this.questGem.position.y = 2 + Math.sin(t * 2.6) * 0.15;
     this.questGem.rotation.y = t * 1.4;
+    this.questHalo.position.y = this.questGem.position.y + 0.36;
+    this.questHalo.material.opacity = 0.45 + Math.sin(t * 3) * 0.12;
     this.questRing.material.opacity = 0.55 + Math.sin(t * 3) * 0.3;
   }
 
@@ -175,6 +196,7 @@ export class Markers {
     this.questGem.geometry.dispose();
     this.questMaterial.dispose();
     this.questRing.material.dispose();
+    this.questHalo.material.dispose();
     this.ringMaterial.dispose();
     this.rings.dispose();
     this.tap.material.dispose();

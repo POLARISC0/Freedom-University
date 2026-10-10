@@ -1,6 +1,6 @@
 // Light for the world: the sun (or the moon) as a directional light that casts shadows around the camera's focus,
-// a hemisphere light for the sky above and the warm ground below, and a few point lights borrowed by the lamps,
-// windows and fires nearest the player at night.
+// a hemisphere light for the sky above and the warm ground below, a few point lights borrowed by the lamps,
+// windows and fires nearest the player at night, and a soft glow around the player so they never walk in the dark.
 
 import * as THREE from "three";
 import type { LightSource } from "./objects";
@@ -13,6 +13,8 @@ export class Lighting {
   readonly hemi = new THREE.HemisphereLight(0xffffff, 0x806040, 1);
   readonly sun = new THREE.DirectionalLight(0xffffff, 2);
   private points: THREE.PointLight[] = [];
+  private glow = new THREE.PointLight(0xc4d4ff, 0, 7, 1.4);
+  private readonly toCamera = new THREE.Vector3();
   private assigned: (LightSource | null)[] = [];
   private reassignIn = 0;
   private readonly dir = new THREE.Vector3();
@@ -37,12 +39,23 @@ export class Lighting {
       this.sun.shadow.camera.near = 1;
       this.sun.shadow.camera.far = 160;
     }
+    scene.add(this.glow);
     for (let i = 0; i < POINT_LIGHTS; i++) {
       const light = new THREE.PointLight(0xffb45a, 0, 8, 1.6);
       scene.add(light);
       this.points.push(light);
       this.assigned.push(null);
     }
+  }
+
+  /**
+   * A gentle moonlit glow around the player at night (`night` 0..1), so they can always see their way. It hangs a
+   * little towards the camera, so the side of them you can see is lit.
+   */
+  light(player: THREE.Vector3, camera: THREE.Vector3, night: number) {
+    this.toCamera.set(camera.x - player.x, 0, camera.z - player.z).normalize();
+    this.glow.position.set(player.x + this.toCamera.x * 1.2, player.y + 2, player.z + this.toCamera.z * 1.2);
+    this.glow.intensity = night * 3.2;
   }
 
   /**

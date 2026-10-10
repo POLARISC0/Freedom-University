@@ -14,6 +14,9 @@ const CheckInView = dynamic(() => import("./CheckInView").then((m) => m.CheckInV
   loading: () => <p className="text-sm text-muted">Loading today&apos;s verse…</p>,
 });
 
+/** The player's avatar on a site page: drawn in the browser only, like the game. */
+export const AvatarOnPage = dynamic(() => import("./AvatarPreview").then((m) => m.AvatarPreview), { ssr: false });
+
 // Thin stateful wrappers so the full-page versions of the journal, paths and lessons share the game's components.
 
 export function JournalPageClient({ initialEntries, initialCheckIns }: { initialEntries: JournalEntryView[]; initialCheckIns: CheckIn[] }) {

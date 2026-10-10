@@ -27,6 +27,9 @@ export async function WalkHeader() {
           <Link href="/walk/play" className="font-medium text-brand hover:underline">
             Enter Galilee
           </Link>
+          <Link href="/walk/me" className="hover:text-ink">
+            Your walk
+          </Link>
           <Link href="/walk/paths" className="hover:text-ink">
             Growth paths
           </Link>

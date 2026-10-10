@@ -1,10 +1,10 @@
 // The ground: one voxel column per tile, with grass tufts, wheat and wildflowers on top, and the jetty's planks.
 // Columns carry on past the map edge so the world never ends in a cliff into the void.
 
-import { hash2 } from "@/walk/world/noise";
+import { hash2, valueNoise } from "@/walk/world/noise";
 import { Tile, type WorldMap } from "@/walk/world/types";
 import { FACE, VoxelBuilder, type Vec3 } from "./builder";
-import { heightAt, JETTY_DECK, tileAt, WATER_LEVEL, type HeightField } from "./heights";
+import { heightAt, JETTY_DECK, tileAt, type HeightField } from "./heights";
 
 /** How far the ground carries on past the map edge, in tiles. */
 export const EDGE = 24;
@@ -23,7 +23,6 @@ const TOP: Record<Tile, string> = {
 };
 
 const GRASSY = new Set([Tile.Grass, Tile.Hill, Tile.Meadow, Tile.Field]);
-const WATERY = new Set([Tile.Deep, Tile.Shallow, Tile.Jetty]);
 
 // Tints per tile type: hills a little drier and more golden than the well-watered town gardens.
 const TINT: Partial<Record<Tile, number>> = {
@@ -39,10 +38,12 @@ const DIRS: [number, number, number][] = [
   [0, -1, FACE.nz],
 ];
 
-/** Build the terrain into `b`: column tops with soft corner shading, stepped sides, and the jetty. */
-export function buildTerrain(b: VoxelBuilder, map: WorldMap, field: HeightField, occupied: Uint8Array) {
+/**
+ * Build the terrain into `b`: column tops with soft corner shading, stepped sides, and the jetty. Grass tufts,
+ * wheat and flowers go into `cover`, which is too small to be worth casting shadows.
+ */
+export function buildTerrain(b: VoxelBuilder, cover: VoxelBuilder, map: WorldMap, field: HeightField, occupied: Uint8Array) {
   const bottom = -3;
-  const c = { r: 1, g: 1, b: 1 };
   for (let ty = -EDGE; ty < map.height + EDGE; ty++) {
     for (let tx = -EDGE; tx < map.width + EDGE; tx++) {
       const tile = tileAt(field, tx, ty);
@@ -54,14 +55,11 @@ export function buildTerrain(b: VoxelBuilder, map: WorldMap, field: HeightField,
         return t === Tile.Jetty ? bedHeight(jettyBed(field, x, y)) : heightAt(field, x, y);
       };
 
-      // Tiny per-tile variation in brightness breaks up the repeating texture.
-      const vary = 0.94 + hash2(tx, ty, 5) * 0.1;
-      const tint = TINT[bed] ?? 0xffffff;
-      const wet = bed === Tile.Sand && nearWater(field, tx, ty) ? 0.86 : 1;
-      c.r = (((tint >> 16) & 255) / 255) * vary * wet;
-      c.g = (((tint >> 8) & 255) / 255) * vary * wet;
-      c.b = ((tint & 255) / 255) * vary * wet * (wet < 1 ? 0.95 : 1);
-      const color = (c.r * 255) << 16 | (c.g * 255) << 8 | (c.b * 255);
+      // Variation in brightness breaks up the repeating texture: a little per tile, and broad lighter and darker
+      // swathes across the land. Sand at the water's edge is wet.
+      const vary = 0.86 + hash2(tx, ty, 5) * 0.07 + valueNoise(tx * 0.13, ty * 0.13, 6) * 0.11;
+      const wet = bed === Tile.Sand && nearWater(field, tx, ty);
+      const color = scaleHex(TINT[bed] ?? 0xffffff, wet ? vary * 0.86 : vary, wet ? 0.95 : 1);
 
       // Corner shading: a top corner tucked against higher columns is a little darker, like Minecraft's smooth light.
       const ao = (dx: number, dy: number) => {
@@ -81,12 +79,12 @@ export function buildTerrain(b: VoxelBuilder, map: WorldMap, field: HeightField,
         const nh = hAt(tx + dx, ty + dy);
         if (nh >= h) continue;
         const from = Math.max(nh, bottom);
-        sideFaces(b, bed, tx, ty, dx, dy, bit, from, h, color);
+        sideFace(b, bed, tx, ty, bit, from, h, color);
       }
     }
   }
   buildJetty(b, map, field);
-  buildGroundCover(b, map, field, occupied);
+  buildGroundCover(cover, map, field, occupied);
 }
 
 function topFace(b: VoxelBuilder, material: string, tx: number, ty: number, h: number, color: number, corners: [number, number, number, number], turn: number) {
@@ -108,13 +106,14 @@ function topFace(b: VoxelBuilder, material: string, tx: number, ty: number, h: n
 
 const dotUv = (p: Vec3, d: Vec3) => p[0] * d[0] + p[1] * d[1] + p[2] * d[2];
 
-function sideFaces(b: VoxelBuilder, tile: Tile, tx: number, ty: number, dx: number, dy: number, bit: number, from: number, to: number, color: number) {
+/** One side of a column, facing a lower neighbour (`bit`), from `from` up to the top `to`. */
+function sideFace(b: VoxelBuilder, tile: Tile, tx: number, ty: number, bit: number, from: number, to: number, color: number) {
   const box = (material: string, y0: number, y1: number, uvOffset: [number, number]) =>
     b.box(material, [tx, y0, ty], [tx + 1, y1, ty + 1], color, { skip: 63 & ~bit, uvOffset });
   if (GRASSY.has(tile)) {
     // Grass hangs over the top half-block; earth below. The fringe lines up with the top of the step.
     const split = Math.max(from, to - 0.5);
-    box(tile === Tile.Field ? "grassSide" : "grassSide", split, to, [0, 1 - to]);
+    box("grassSide", split, to, [0, 1 - to]);
     if (split > from) box("dirt", from, split, [0, 0]);
   } else if (tile === Tile.Plaza) {
     box("stone", from, to, [0, 0]);
@@ -123,8 +122,6 @@ function sideFaces(b: VoxelBuilder, tile: Tile, tx: number, ty: number, dx: numb
   } else {
     box("sand", from, to, [0, 0]);
   }
-  void dx;
-  void dy;
 }
 
 function bedHeight(tile: Tile): number {
@@ -161,9 +158,8 @@ function buildJetty(b: VoxelBuilder, map: WorldMap, field: HeightField) {
   for (let ty = 0; ty < map.height; ty++) {
     for (let tx = 0; tx < map.width; tx++) {
       if (tileAt(field, tx, ty) !== Tile.Jetty) continue;
-      const tone = 0.92 + hash2(tx, ty, 3) * 0.12;
-      const plank = new ColorScale(0xffffff, tone);
-      b.box("planks", [tx, JETTY_DECK - 0.16, ty], [tx + 1, JETTY_DECK, ty + 1], plank.hex, { skip: sideSkip(field, tx, ty) });
+      const plank = scaleHex(0xffffff, 0.88 + hash2(tx, ty, 3) * 0.12);
+      b.box("planks", [tx, JETTY_DECK - 0.16, ty], [tx + 1, JETTY_DECK, ty + 1], plank, { skip: sideSkip(field, tx, ty) });
       // Posts at the corners of every other row, down into the lake bed.
       if (ty % 2 === 0) {
         const left = tileAt(field, tx - 1, ty) !== Tile.Jetty;
@@ -185,12 +181,10 @@ function sideSkip(field: HeightField, tx: number, ty: number): number {
   return skip;
 }
 
-class ColorScale {
-  readonly hex: number;
-  constructor(color: number, k: number) {
-    const ch = (s: number) => Math.min(255, Math.round(((color >> s) & 255) * k));
-    this.hex = (ch(16) << 16) | (ch(8) << 8) | ch(0);
-  }
+/** A colour scaled in brightness (and optionally its blue channel further), clamped to stay a valid colour. */
+function scaleHex(color: number, k: number, blue = 1): number {
+  const ch = (s: number, extra = 1) => Math.max(0, Math.min(255, Math.round(((color >> s) & 255) * k * extra)));
+  return (ch(16) << 16) | (ch(8) << 8) | ch(0, blue);
 }
 
 const FLOWER_COLORS = [0xe0483e, 0xf6f2e4, 0xa678cc, 0xf2cc40, 0xe86aa0];
@@ -205,12 +199,12 @@ function buildGroundCover(b: VoxelBuilder, map: WorldMap, field: HeightField, oc
       const r = (k: number) => hash2(tx, ty, 40 + k);
       if (tile === Tile.Field) {
         // Rows of wheat, each stalk a thin block with a golden ear.
-        for (let k = 0; k < 6; k++) {
-          const x = tx + 0.12 + (k % 3) * 0.33 + (r(k) - 0.5) * 0.12;
-          const z = ty + 0.2 + Math.floor(k / 3) * 0.5 + (r(k + 7) - 0.5) * 0.15;
+        for (let k = 0; k < 4; k++) {
+          const x = tx + 0.2 + (k % 2) * 0.5 + (r(k) - 0.5) * 0.16;
+          const z = ty + 0.22 + Math.floor(k / 2) * 0.5 + (r(k + 7) - 0.5) * 0.16;
           const top = h + 0.42 + r(k + 13) * 0.18;
-          b.box("plain", [x, h, z], [x + 0.06, top - 0.12, z + 0.06], 0xc8a650, { sway: [0, 0.6] });
-          b.box("plain", [x - 0.02, top - 0.14, z - 0.02], [x + 0.08, top, z + 0.08], 0xe8c860, { sway: 0.7 });
+          b.box("plain", [x, h, z], [x + 0.07, top - 0.12, z + 0.07], 0xc8a650, { sway: [0, 0.6] });
+          b.box("plain", [x - 0.02, top - 0.14, z - 0.02], [x + 0.09, top, z + 0.09], 0xe8c860, { sway: 0.7 });
         }
       } else if (tile === Tile.Grass || tile === Tile.Hill || tile === Tile.Meadow) {
         if (r(0) < 0.32) {
@@ -218,8 +212,7 @@ function buildGroundCover(b: VoxelBuilder, map: WorldMap, field: HeightField, oc
           const z = ty + 0.15 + r(2) * 0.6;
           const green = tile === Tile.Hill ? 0x8fae55 : 0x6f9e44;
           b.box("plain", [x, h, z], [x + 0.06, h + 0.2, z + 0.06], green, { sway: [0, 0.4] });
-          b.box("plain", [x + 0.08, h, z + 0.04], [x + 0.14, h + 0.14, z + 0.1], green, { sway: [0, 0.3] });
-          b.box("plain", [x - 0.06, h, z + 0.06], [x, h + 0.12, z + 0.12], green, { sway: [0, 0.3] });
+          b.box("plain", [x + 0.08, h, z + 0.04], [x + 0.14, h + 0.13, z + 0.1], green, { sway: [0, 0.3] });
         }
         if (tile === Tile.Meadow && r(3) < 0.5) {
           const x = tx + 0.2 + r(4) * 0.6;
@@ -246,4 +239,3 @@ export function occupiedTiles(map: WorldMap): Uint8Array {
   return out;
 }
 
-export { WATER_LEVEL, WATERY };

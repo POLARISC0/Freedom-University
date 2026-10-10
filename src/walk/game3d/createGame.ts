@@ -59,7 +59,6 @@ export function createGame(parent: HTMLElement, world: World, playerAppearance: 
   renderer.toneMappingExposure = 1;
   renderer.shadowMap.enabled = quality.shadows;
   renderer.shadowMap.type = THREE.PCFShadowMap;
-  renderer.info.autoReset = true;
   const canvas = renderer.domElement;
   canvas.style.display = "block";
   canvas.style.width = "100%";
@@ -75,8 +74,10 @@ export function createGame(parent: HTMLElement, world: World, playerAppearance: 
 
   // The ground and everything built on it, merged by material.
   const ground = new VoxelBuilder();
-  buildTerrain(ground, map, field, occupiedTiles(map));
+  const cover = new VoxelBuilder();
+  buildTerrain(ground, cover, map, field, occupiedTiles(map));
   meshesFrom(ground.build(), materials, scene, { cast: quality.shadows, receive: quality.shadows });
+  meshesFrom(cover.build(), materials, scene, { cast: false, receive: quality.shadows });
   const layers = buildObjects(map.objects, field);
   meshesFrom(layers.still.build(), materials, scene, { cast: quality.shadows, receive: quality.shadows });
   const openStalls = new THREE.Group();
@@ -145,13 +146,13 @@ export function createGame(parent: HTMLElement, world: World, playerAppearance: 
   // ---- Taps ------------------------------------------------------------------------------------------------------
 
   const projected = new THREE.Vector3();
-  const toScreen = (x: number, y: number, z: number) => {
+  /** Project a world point to CSS pixels on the canvas, into `out` (a fresh object when not given). */
+  const toScreen = (x: number, y: number, z: number, out = { x: 0, y: 0, behind: false }) => {
     projected.set(x, y, z).project(camera);
-    return {
-      x: ((projected.x + 1) / 2) * width,
-      y: ((1 - projected.y) / 2) * height,
-      behind: projected.z > 1,
-    };
+    out.x = ((projected.x + 1) / 2) * width;
+    out.y = ((1 - projected.y) / 2) * height;
+    out.behind = projected.z > 1;
+    return out;
   };
   const ndc = new THREE.Vector2();
   const raycaster = new THREE.Raycaster();
@@ -211,8 +212,12 @@ export function createGame(parent: HTMLElement, world: World, playerAppearance: 
   const moonDir = new THREE.Vector3();
   const follow = new THREE.Vector3();
   const questPoint = new THREE.Vector3();
+  // Reused every frame, so following the player doesn't churn the garbage collector.
   const labelInputs: LabelInput[] = [];
+  const labelPool = new Map<string, LabelInput>();
   const ringInputs: { x: number; y: number; z: number; radius: number; color: number; strength: number }[] = [];
+  const ringPool: typeof ringInputs = [];
+  const screenPoint = { x: 0, y: 0, behind: false };
   let elapsed = 0;
   let last = performance.now();
   let raf = 0;
@@ -274,17 +279,22 @@ export function createGame(parent: HTMLElement, world: World, playerAppearance: 
     fog.color.copy(colors.horizon);
     const clearNear = distance + 14;
     const clearFar = distance * 2.4 + 70;
-    fog.near = THREE.MathUtils.lerp(clearNear, distance * 0.35, weatherLevels.fog);
-    fog.far = THREE.MathUtils.lerp(clearFar, distance + 16, weatherLevels.fog);
+    // Mist closes in around the player, leaving the nearest few steps clear.
+    fog.near = THREE.MathUtils.lerp(clearNear, distance * 0.3, weatherLevels.fog);
+    fog.far = THREE.MathUtils.lerp(clearFar, distance + 12, weatherLevels.fog);
     sky.update(dt, camera, rig.target, colors, sunDir, moonDir, palette.stars, weatherLevels.cloud, weatherLevels.wind);
     lighting.update(dt, elapsed, colors, sunDir, moonDir, lamp, rig.target, distance * 0.95);
+    lighting.light(p, camera.position, night);
     materials.glow.emissiveIntensity = lamp * 1.8;
     materials.uniforms.uTime.value = elapsed;
     materials.uniforms.uWind.value = weatherLevels.wind;
+    // Cloud shadows only show when the sun is out to cast them.
+    materials.uniforms.uCloudShadow.value = Math.max(0, weatherLevels.cloud - 0.1) * 0.6 * THREE.MathUtils.clamp(sunDir.y * 4, 0, 1);
+    materials.uniforms.uCloudOffset.value.set(-sky.drift, 0);
 
     const daylight = 1 - night;
     const glintDir = sunDir.y > 0 ? sunDir : moonDir;
-    water.update(elapsed, 0.05 + weatherLevels.wind * 0.28, {
+    water.update(elapsed, 0.05 + weatherLevels.wind * 0.28, weatherLevels.rain, 1 - night * 0.85, {
       deep: colors.waterDeep,
       shallow: colors.waterShallow,
       sky: colors.zenith,
@@ -322,8 +332,14 @@ export function createGame(parent: HTMLElement, world: World, playerAppearance: 
     for (const spot of map.activitySpots ?? []) {
       const d = Math.hypot(spot.x - world.player.pos.x, spot.y - world.player.pos.y);
       if (d > RING_DISTANCE) continue;
-      const strength = Math.min(1, (RING_DISTANCE - d) / 3);
-      ringInputs.push({ x: spot.x, y: groundHeight(field, spot.x, spot.y), z: spot.y, radius: spot.radius, color: activityColor(spot.activity), strength });
+      const ring = (ringPool[ringInputs.length] ??= { x: 0, y: 0, z: 0, radius: 0, color: 0, strength: 0 });
+      ring.x = spot.x;
+      ring.y = groundHeight(field, spot.x, spot.y);
+      ring.z = spot.y;
+      ring.radius = spot.radius;
+      ring.color = activityColor(spot.activity);
+      ring.strength = Math.min(1, (RING_DISTANCE - d) / 3);
+      ringInputs.push(ring);
     }
     markers.setRings(ringInputs, elapsed);
     markers.update(dt);
@@ -341,22 +357,23 @@ export function createGame(parent: HTMLElement, world: World, playerAppearance: 
       if (!npc?.def.characterId || npc.def.role === "townsfolk") continue;
       const near = Math.hypot(npc.pos.x - player.x, npc.pos.y - player.y);
       const showName = npc.def.role === "mentor" || near < NAME_DISTANCE;
-      const s = toScreen(actor.position.x, actor.position.y + crowd.headHeight(actor) + 0.12, actor.position.z);
+      const s = toScreen(actor.position.x, actor.position.y + crowd.headHeight(actor) + 0.12, actor.position.z, screenPoint);
       const onScreen = !s.behind && s.x > -40 && s.x < view.width + 40 && s.y > -20 && s.y < view.height + 40;
-      labelInputs.push({
-        id: npc.def.id,
-        text: npc.def.name ?? "",
-        x: s.x,
-        y: s.y,
-        visible: npc.visible && showName && onScreen,
-        badge: npc.def.role === "mentor" && story.mentorsWithLessons.includes(npc.def.characterId),
-        highlight: near < 1.8,
-      });
+      let label = labelPool.get(npc.def.id);
+      if (!label) {
+        label = { id: npc.def.id, text: npc.def.name ?? "", x: 0, y: 0, visible: false };
+        labelPool.set(npc.def.id, label);
+      }
+      label.x = s.x;
+      label.y = s.y;
+      label.visible = npc.visible && showName && onScreen;
+      label.badge = npc.def.role === "mentor" && story.mentorsWithLessons.includes(npc.def.characterId);
+      label.highlight = near < 1.8;
+      labelInputs.push(label);
     }
-    labels.update(labelInputs);
+    labels.update(labelInputs, view.width);
     if (quest) {
-      const s = toScreen(quest.x, quest.y + 1, quest.z);
-      labels.setArrow(edgeArrow(s, view));
+      labels.setArrow(edgeArrow(toScreen(quest.x, quest.y + 1, quest.z, screenPoint), view));
     } else {
       labels.setArrow(null);
     }

@@ -66,7 +66,7 @@ const KEYS: Key[] = [
     ambientGround: 0x3e3448,
     ambientIntensity: 1,
     waterDeep: 0x2a3d6c,
-    waterShallow: 0x52708e,
+    waterShallow: 0x4f7896,
     stars: 0.45,
   },
   {
@@ -79,7 +79,7 @@ const KEYS: Key[] = [
     ambientGround: 0x6e5a50,
     ambientIntensity: 1,
     waterDeep: 0x3c6e98,
-    waterShallow: 0x74aab8,
+    waterShallow: 0x5e9cb2,
     stars: 0,
   },
   {
@@ -118,7 +118,7 @@ const KEYS: Key[] = [
     ambientGround: 0x8c6c4a,
     ambientIntensity: 1,
     waterDeep: 0x2e6e98,
-    waterShallow: 0x68b0b2,
+    waterShallow: 0x5eaab4,
     stars: 0,
   },
   {
@@ -131,7 +131,7 @@ const KEYS: Key[] = [
     ambientGround: 0x6c4c40,
     ambientIntensity: 0.98,
     waterDeep: 0x3a4f80,
-    waterShallow: 0xa27c72,
+    waterShallow: 0x5a8c98,
     stars: 0,
   },
   {
@@ -144,7 +144,7 @@ const KEYS: Key[] = [
     ambientGround: 0x3c2e42,
     ambientIntensity: 1,
     waterDeep: 0x223a68,
-    waterShallow: 0x4c507c,
+    waterShallow: 0x3c5a7e,
     stars: 0.3,
   },
   { hour: 20.6, ...NIGHT },
@@ -191,18 +191,18 @@ export function withWeather(sky: SkyColors, weather: Pick<Weather, "cloud" | "ra
   const rain = clamp01(weather.rain);
   const fog = clamp01(weather.fog);
   const overcast = Math.max(cloud, rain);
-  const dim = 1 - rain * 0.22 - cloud * 0.08;
+  const dim = 1 - rain * 0.3 - cloud * 0.1;
   const brightness = Math.max(luma(sky.horizon), 0.08);
   const mist: RGB = scale([0.86, 0.88, 0.9], Math.min(1, brightness * 1.25));
   return {
     zenith: scale(grey(sky.zenith, overcast * 0.75), dim),
     horizon: mixRgb(scale(grey(sky.horizon, overcast * 0.7), dim), mist, fog * 0.75),
     sun: grey(sky.sun, overcast * 0.5),
-    sunIntensity: sky.sunIntensity * (1 - cloud * 0.7) * (1 - rain * 0.35) * (1 - fog * 0.35),
-    ambientSky: grey(sky.ambientSky, overcast * 0.6),
-    ambientGround: sky.ambientGround,
-    // Overcast light is soft and comes from everywhere.
-    ambientIntensity: sky.ambientIntensity * (1 + cloud * 0.25) * (1 - rain * 0.1),
+    sunIntensity: sky.sunIntensity * (1 - cloud * 0.7) * (1 - rain * 0.4) * (1 - fog * 0.35),
+    ambientSky: scale(grey(sky.ambientSky, overcast * 0.6), dim),
+    ambientGround: scale(sky.ambientGround, dim),
+    // Overcast light is soft and comes from everywhere, but rain makes the day grey.
+    ambientIntensity: sky.ambientIntensity * (1 + cloud * 0.15) * (1 - rain * 0.2),
     waterDeep: scale(grey(sky.waterDeep, overcast * 0.5), dim),
     waterShallow: scale(grey(sky.waterShallow, overcast * 0.5), dim),
     stars: sky.stars * (1 - overcast) * (1 - fog),

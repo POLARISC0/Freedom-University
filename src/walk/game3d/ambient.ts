@@ -86,7 +86,7 @@ export class AmbientLife {
       new THREE.PointsMaterial({
         map: this.glowTexture,
         color: 0xd8ff7a,
-        size: 0.35,
+        size: 0.5,
         transparent: true,
         depthWrite: false,
         blending: THREE.AdditiveBlending,

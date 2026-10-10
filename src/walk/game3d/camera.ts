@@ -10,7 +10,7 @@ export const YAW_STEP = Math.PI / 4;
 export const DEFAULT_ZOOM = 0.42;
 const NEAR_DISTANCE = 6.5;
 const FAR_DISTANCE = 46;
-const NEAR_PITCH = THREE.MathUtils.degToRad(34);
+const NEAR_PITCH = THREE.MathUtils.degToRad(12);
 const FAR_PITCH = THREE.MathUtils.degToRad(56);
 
 /** The nearest whole step for a yaw angle. */
@@ -28,7 +28,8 @@ export function zoomPose(zoom: number): { distance: number; pitch: number } {
   const z = THREE.MathUtils.clamp(zoom, 0, 1);
   return {
     distance: NEAR_DISTANCE * Math.pow(FAR_DISTANCE / NEAR_DISTANCE, z),
-    pitch: NEAR_PITCH + (FAR_PITCH - NEAR_PITCH) * Math.pow(z, 0.7),
+    // Low enough at the closest zoom to see faces and the sky; about 45 degrees down by default.
+    pitch: NEAR_PITCH + (FAR_PITCH - NEAR_PITCH) * Math.pow(z, 0.4),
   };
 }
 

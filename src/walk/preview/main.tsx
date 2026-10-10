@@ -49,7 +49,13 @@ async function boot() {
   setSavedIn(store.where);
   root.render(
     <StrictMode>
-      <GameShell userId="preview" initialProgress={data.progress} initialJournal={data.journal} initialCheckIns={data.checkIns} />
+      <GameShell
+        userId="preview"
+        initialLife={data.life}
+        initialProgress={data.progress}
+        initialJournal={data.journal}
+        initialCheckIns={data.checkIns}
+      />
       <PreviewChip />
     </StrictMode>,
   );

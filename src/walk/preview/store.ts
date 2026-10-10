@@ -1,9 +1,10 @@
+import { parseLife, type LifeState } from "@/walk/life";
 import type { CheckInView, JournalEntryView, ProgressMap } from "@/walk/progress";
 import { getCapability, type Db, type UserCapability } from "./capabilities";
 
-// Where the preview keeps a player's progress, journal, check-ins and conversations. On claude.ai it uses the
-// artifact's private per-viewer storage (`data/users/<id>/`, which nobody else can read, the owner included);
-// anywhere else, or if that storage refuses a write, it falls back to this browser's local storage.
+// Where the preview keeps a player's character and life, progress, journal, check-ins and conversations. On
+// claude.ai it uses the artifact's private per-viewer storage (`data/users/<id>/`, which nobody else can read, the
+// owner included); anywhere else, or if that storage refuses a write, it falls back to this browser's local storage.
 
 export interface ChatMessage {
   id: string;
@@ -15,6 +16,8 @@ export interface WalkData {
   progress: ProgressMap;
   journal: JournalEntryView[];
   checkIns: CheckInView[];
+  /** The player's character and life in the world; null until they make their character. */
+  life: LifeState | null;
 }
 
 export interface Store {
@@ -25,11 +28,12 @@ export interface Store {
   saveJournalEntry(entry: JournalEntryView): Promise<void>;
   deleteJournalEntry(id: string): Promise<void>;
   saveCheckIns(checkIns: CheckInView[]): Promise<void>;
+  saveLife(life: LifeState): Promise<void>;
   loadThread(key: string): Promise<ChatMessage[]>;
   saveThread(key: string, messages: ChatMessage[]): Promise<void>;
 }
 
-const EMPTY: WalkData = { progress: {}, journal: [], checkIns: [] };
+const EMPTY: WalkData = { progress: {}, journal: [], checkIns: [], life: null };
 /** Set once the viewer's account refused a save: from then on this browser keeps their walk. */
 const BROWSER_ONLY = "walk-preview:browser-only";
 
@@ -59,6 +63,7 @@ export class BrowserStore implements Store {
       progress: read(`${this.prefix}:progress`, {}),
       journal: read(`${this.prefix}:journal`, []),
       checkIns: read(`${this.prefix}:checkins`, []),
+      life: parseLife(read(`${this.prefix}:life`, null)),
     };
   }
   async saveProgress(progress: ProgressMap) {
@@ -73,6 +78,9 @@ export class BrowserStore implements Store {
   }
   async saveCheckIns(checkIns: CheckInView[]) {
     write(`${this.prefix}:checkins`, checkIns);
+  }
+  async saveLife(life: LifeState) {
+    write(`${this.prefix}:life`, life);
   }
   async loadThread(key: string) {
     return read<ChatMessage[]>(`${this.prefix}:chat:${key}`, []);
@@ -99,10 +107,11 @@ class AccountStore implements Store {
   }
 
   async load(): Promise<WalkData> {
-    const [progress, checkins, journal] = await Promise.all([
+    const [progress, checkins, journal, life] = await Promise.all([
       this.db.doc(`${this.root}/progress`).get(),
       this.db.doc(`${this.root}/checkins`).get(),
       this.db.doc(`${this.root}/journal`).collection("entries").get(),
+      this.db.doc(`${this.root}/life`).get(),
     ]);
     return {
       progress: (progress.data()?.lessons as ProgressMap | undefined) ?? {},
@@ -111,6 +120,7 @@ class AccountStore implements Store {
         .map((d) => d.data() as unknown as JournalEntryView | undefined)
         .filter((e): e is JournalEntryView => Boolean(e?.id))
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+      life: parseLife(life.data()?.life),
     };
   }
   async saveProgress(progress: ProgressMap) {
@@ -124,6 +134,9 @@ class AccountStore implements Store {
   }
   async saveCheckIns(checkIns: CheckInView[]) {
     await this.db.doc(`${this.root}/checkins`).set({ days: checkIns });
+  }
+  async saveLife(life: LifeState) {
+    await this.db.doc(`${this.root}/life`).set({ life });
   }
   async loadThread(key: string) {
     const snap = await this.db.doc(`${this.root}/chats`).collection("threads").doc(threadDocId(key)).get();
@@ -188,6 +201,7 @@ export class FallbackStore implements Store {
     const data = this.snapshot();
     await this.browser.saveProgress(data.progress);
     await this.browser.saveCheckIns(data.checkIns);
+    if (data.life) await this.browser.saveLife(data.life);
     for (const entry of [...data.journal].reverse()) await this.browser.saveJournalEntry(entry);
   };
 
@@ -202,6 +216,9 @@ export class FallbackStore implements Store {
   }
   saveCheckIns(checkIns: CheckInView[]) {
     return this.attempt((s) => s.saveCheckIns(checkIns), this.copyAllToBrowser);
+  }
+  saveLife(life: LifeState) {
+    return this.attempt((s) => s.saveLife(life), this.copyAllToBrowser);
   }
   async loadThread(key: string) {
     try {

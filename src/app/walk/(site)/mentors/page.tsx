@@ -1,11 +1,16 @@
 import type { Metadata } from "next";
 import { CHARACTERS, getPath } from "@/walk/content";
+import { routineLine } from "@/walk/components/game/routine";
 import { Portrait } from "@/walk/components/Portrait";
 import { RefChips } from "@/walk/components/Scripture";
+import { buildCapernaum } from "@/walk/world/maps/capernaum";
 
 export const metadata: Metadata = { title: "Mentors" };
 
 export default function MentorsPage() {
+  // Each character's usual day, from the routines the game world runs.
+  const map = buildCapernaum();
+  const days = new Map(map.npcs.map((n) => [n.characterId, routineLine(n.schedule, map.spots)]));
   return (
     <div className="space-y-6">
       <header className="max-w-3xl">
@@ -15,6 +20,11 @@ export default function MentorsPage() {
           Like a team of specialists around one leader, each disciple teaches one area of growth, and Jesus is at the
           center of it all. Their personalities come from what Scripture records; where the Bible says little, the game
           says so. More biblical figures (Moses, David, Ruth, Mary, Paul) will join in later chapters.
+        </p>
+        <p className="mt-2 text-muted">
+          In the game each of them keeps a daily routine drawn from the Gospels: Jesus praying before dawn and
+          teaching by the shore, Peter at his nets, Matthew by his old tax booth, and friends gathered around
+          Peter&apos;s table at supper. Your friendship with each one grows as you spend time together.
         </p>
       </header>
       <ul className="grid gap-4 md:grid-cols-2">
@@ -41,6 +51,11 @@ export default function MentorsPage() {
                 <span className="text-muted"> · {c.pathSlugs.map((s) => getPath(s)?.title).join(", ")}</span>
               )}
             </p>
+            {days.get(c.id) && (
+              <p className="text-xs text-muted">
+                <span className="font-semibold">A day in Capernaum:</span> {days.get(c.id)}
+              </p>
+            )}
             {c.cautions && <p className="text-xs text-muted">Note: {c.cautions}</p>}
             <RefChips refs={c.keyRefs.slice(0, 6)} label="In Scripture:" />
           </li>

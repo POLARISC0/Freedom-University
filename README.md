@@ -7,7 +7,7 @@ to unlock the next, and read a daily news briefing written by Professor 3.
 **Education only.** Every professor is instructed never to give personalised trading, investment, tax or legal
 advice, and to say so when asked.
 
-The same app also hosts **[Walk With Him](#walk-with-him)** at `/walk`: an explorable 2D world of first-century
+The same app also hosts **[Walk With Him](#walk-with-him)** at `/walk`: an explorable 3D world of first-century
 Galilee where biblical characters mentor players through Scripture. Both share one account system and database.
 
 ## The faculty
@@ -28,7 +28,7 @@ curated reading list that the professor cites as `[S1]`, `[S2]`, …
 - Next.js 16 (App Router) + TypeScript + Tailwind CSS 4
 - SQLite via Prisma 7 (`@prisma/adapter-better-sqlite3`)
 - Anthropic API (`@anthropic-ai/sdk`) for the professors and Walk With Him characters, defaulting to `claude-opus-5-5`
-- Phaser 4 for the Walk With Him game world
+- Three.js for the Walk With Him 3D world
 - GNews.io for headlines
 - Vitest for unit tests
 
@@ -108,25 +108,31 @@ src/
 # Walk With Him
 
 An explorable, browser-based version of first-century Galilee that helps people grow in their relationship with
-God. Many people never had a father or mentor to teach them how to live; Scripture can. Players walk the shore of
-the Sea of Galilee, meet the people who walked with Jesus, and learn from them through stories, conversations,
-small quests, reflections and a real-life challenge for each week.
+God. Many people never had a father or mentor to teach them how to live; Scripture can. Players make their own
+character, live by the Sea of Galilee alongside the people who walked with Jesus, and learn from them through
+stories, conversations, small quests, reflections and a real-life challenge for each week.
 
-Play at **`/walk`** (landing page) → **`/walk/play`** (the game). Walk with the arrow keys or WASD, or tap where you
-want to go; press E or tap someone to talk.
+Play at **`/walk`** (landing page) → **`/walk/play`** (the game). Walk with WASD or the arrow keys (relative to the
+camera: up walks into the view), or tap where you want to go. Turn the view with `[` `]`, the on-screen buttons or a
+drag, and zoom with `+` `−`, the wheel or a pinch. Press E or tap someone to talk, or walk up to a place to pray,
+read, share a meal, help or rest.
 
 ## What's in the first milestone
 
 | | |
 |---|---|
-| **World** | Capernaum on the north shore of the Sea of Galilee: basalt houses, the synagogue, a market with stalls and a well, Matthew's tax booth on the shore road, fishing boats, a jetty, a fire of coals on the beach, an olive grove, wheat fields, and a quiet place on the hillside. |
-| **Life** | A 12-minute day/night cycle with first-century time-keeping ("the sixth hour", "the fourth watch of the night"), lamps and fires that glow at night, fishermen, merchants, villagers, children, travellers on the Via Maris, a crowd listening to Jesus, sheep, gulls and fireflies. |
-| **AI mentors** | Jesus, Peter and Matthew hold AI conversations, both inside lessons and freely. The other nine disciples walk the world with scripted greetings and are fully defined for later chapters. |
+| **World** | Capernaum on the north shore of the Sea of Galilee in 3D, seen from a Sims-style overhead camera you can turn and zoom: basalt houses (one of them yours), the synagogue with Peter's house and courtyard beside it, a market with stalls and a well, Matthew's tax booth on the shore road, fishing boats, a jetty, a fire of coals on the beach, an olive grove, wheat fields, and a quiet place on the hillside. |
+| **Life** | A 12-minute day/night cycle with first-century time-keeping ("the sixth hour", "the fourth watch of the night"), weather (clear days, clouds rising from the west, morning mist over the lake, passing showers, a contrary wind), lamps and fires that glow at night, and a town that keeps its own routines: fishermen at the nets from dawn, merchants and villagers in the market, children on the beach, travellers on the Via Maris, a crowd listening to Jesus, sheep on the hillside. |
+| **Your character** | A Sims-style creator on your first visit: your name, skin tone, hair, beard, robe, mantle, sash and head covering, with a live 3D preview. Change it any time from the 🧍 button. The characters call you by your name. |
+| **Spiritual needs** | Five meters over the world (Prayer, Word, Fellowship, Service, Rest) that grow when you do those things and fade gently with game time, with a kind, dismissible suggestion and a verse when one runs low. Never a score. |
+| **Activities** | Pray in the quiet place, read the scroll at the synagogue, sit and listen while Jesus teaches, share the evening meal in Peter's courtyard, help with the nets, carry water, rest under the fig tree, and sleep at your house until morning. Each takes a few seconds, shows the Scripture behind it, and grows your needs and your friendships with whoever is there. |
+| **AI mentors** | Jesus, Peter and Matthew hold AI conversations, both inside lessons and freely, and keep daily routines drawn from the Gospels (Jesus praying before dawn and teaching by the shore, Peter at his boat and nets, Matthew at the market and his old tax booth, all of them at Peter's table for supper). Their tone is the fruit of the Spirit (Galatians 5:22-23). The other nine disciples walk the world with routines and scripted greetings and are fully defined for later chapters. |
+| **Friendships & badges** | Each character's friendship grows with greetings, conversations, lessons and time spent together (Newly met → Acquaintance → Friend → Close friend → Like family). Fourteen gentle growth badges, each with its verse, mark moments in the walk. Shown in the game's "Your walk" panel and on `/walk/me`. |
 | **Lessons** | *Teach Us to Pray* (Prayer, with Jesus), *Out of the Boat* (Faith, with Peter), *The Widow's Two Coins* (Tithing & Generosity, with Matthew). Each has a story scene, scripted teaching, a small quest in the world, an AI conversation, a reflection saved to the journal, and a challenge for the week. |
 | **Walk Journal** | Private reflections, prayers, gratitude and notes: write, filter, edit, delete. Lesson reflections land here automatically. |
 | **Progress** | Growth paths with gentle encouragement and "I practised this week's challenge" check-offs. No points, streaks or leaderboards. |
 | **Daily** | A verse of the day (74 verses) and a daily check-in ("How is your walk with God today?") that can save a prayer to the journal. |
-| **Other pages** | `/walk/paths`, `/walk/journal`, `/walk/mentors` (all twelve mentors), `/walk/help` (crisis resources), and `/walk/lessons/[slug]`, which plays any lesson without the game world for people who prefer reading or use assistive technology. |
+| **Other pages** | `/walk/me` (your needs, friendships and badges), `/walk/paths`, `/walk/journal`, `/walk/mentors` (all twelve mentors and their days in Capernaum), `/walk/help` (crisis resources), and `/walk/lessons/[slug]`, which plays any lesson without the game world for people who prefer reading or use assistive technology. |
 
 ## Guardrails
 
@@ -159,24 +165,43 @@ src/walk/
 ├── scripture/      # reference parsing, verse-level validation, WEB verse counts, linking
 ├── safety/         # crisis detection and help lines
 ├── ai/prompts.ts   # per-character system prompts with shared guardrails
-├── world/          # renderer-independent simulation: map, collision, A* pathfinding, NPC schedules,
-│                   #   day/night clock, quest arrival, and story state derived from lesson progress
-├── game/           # the Phaser 4 renderer: procedural pixel art, lighting, camera, input, name labels
-├── components/     # React UI: lesson player, AI chat, journal, check-in, paths, HUD (game/GameShell.tsx)
+├── world/          # renderer-independent simulation: map, collision, A* pathfinding, daily routines,
+│                   #   day/night clock, weather, activities, quest arrival, story state from lesson progress
+├── life/           # the player's life: needs, activities, friendships, badges, and the saved LifeState
+├── game3d/         # the Three.js renderer: terrain, water, sky and weather, buildings, characters, camera, input
+├── game/art/       # 2D character portraits for panels and lists
+├── components/     # React UI: character creator, needs HUD, lesson player, AI chat, journal, check-in,
+│                   #   paths, "Your walk" (game/GameShell.tsx is the in-game shell)
+├── preview/        # in-browser stand-ins for the server actions and chat route (npm run preview:build)
 ├── server/data.ts  # database reads
+├── action-rules.ts # input rules shared by the server actions and the preview
 └── progress.ts     # progress types and rules shared by client and server
 src/app/walk/       # pages, layouts and server actions (actions.ts)
 src/app/api/walk/chat/route.ts   # streaming character conversations
 ```
 
-- **Ready for 3D.** The world model in `src/walk/world` knows nothing about Phaser: it owns positions, schedules, time
-  and events, and the renderer only draws it. A 3D renderer (Three.js, say) would implement the same job as
-  `src/walk/game/createGame.ts` against the same `World`, with no changes to the simulation, content or UI.
-- **No image assets.** All art is generated on canvas at load time (`src/walk/game/art`): terrain with organic
-  shorelines from a distance field, basalt houses, market stalls, boats, trees, and character sprites built from
-  each character's appearance data. Players choose their own skin tone, hair, robe and head covering.
-- **Data.** Prisma models `WalkLessonProgress`, `WalkJournalEntry`, `WalkMessage` and `WalkCheckIn` (migration
-  `walk_with_him`). Player position, time of day and appearance are kept in the browser's local storage.
+- **The world doesn't know how it's drawn.** The simulation in `src/walk/world` owns positions, routines, time,
+  weather, activities and events; the Three.js renderer in `src/walk/game3d` only reads it each frame and turns taps
+  and keys into world calls. The life systems in `src/walk/life` are pure data and functions, so the game, the
+  website and the tests all share them.
+- **No image assets.** The world and everyone in it are built from code at load time, and each character is drawn
+  from their appearance data, the player's included.
+- **Data.** Prisma models `WalkLessonProgress`, `WalkJournalEntry`, `WalkMessage`, `WalkCheckIn` (migration
+  `walk_with_him`) and `WalkLife` (migration `walk_life`). The player's position and the time of day are kept in the
+  browser's local storage.
+- **How saves work.** The player's life (name, appearance, needs, friendships, badges and a few counters) is one
+  JSON document in `WalkLife`, written by the `saveLife` server action. The game sends it a few seconds after it
+  changes and straight away when the page is hidden, one save at a time; if a save fails the player keeps playing,
+  hears about it once, and it is retried later. Everything coming in, and everything read back, goes through
+  `parseLife` (`src/walk/life/state.ts`), which clamps numbers, checks colours and choices, cleans the name and drops
+  anything unknown, and the action refuses anything that isn't a life. Lessons, journal entries and check-ins keep
+  their own tables; the life only records what they mean for needs, friendships and badges. Needs fade with game
+  time, not real time, so nothing is lost by being away. On a new device the world starts at the day and hour the
+  life was last at.
+- **Static preview.** `npm run preview:build` bundles the game alone into `preview-dist/` (a page, `app.js` and
+  `app.css`) to run without the Next.js server, for example as a claude.ai artifact. `src/walk/preview` stands in
+  for the server actions (with the same rules from `action-rules.ts`) and the chat route, saving the player's life,
+  progress and journal to the viewer's private artifact storage or, failing that, to the browser.
 - **AI.** `/api/walk/chat` streams replies from `claude-opus-5-5` (or `ANTHROPIC_MODEL`) at medium effort, with the
   last 30 messages of the thread, prompt caching, the server-side refusal fallback, and a limit of 60 messages per
   player per hour. Without `ANTHROPIC_API_KEY` every lesson still works; only the conversation step says that
@@ -186,8 +211,10 @@ src/app/api/walk/chat/route.ts   # streaming character conversations
 
 - **A new character** (Moses, David, Mary, Paul, Ruth…): add an entry to `src/walk/content/characters.ts` with
   personality, voice, Scripture-grounded backstory, key passages, honest limits and appearance, then give them a
-  home spot in a map (`characterHomes` in `src/walk/world/maps/capernaum.ts`). Set `conversational: true` to enable
-  AI conversations.
+  daily routine in a map (`ROUTINES` in `src/walk/world/maps/capernaum.ts`), citing Scripture for what they do.
+  Set `conversational: true` to enable AI conversations.
+- **A new activity:** add it to `ACTIVITIES` in `src/walk/life/activities.ts` (needs it feeds, hours, its passage)
+  and an activity spot for it in the map.
 - **A new lesson:** add it to `src/walk/content/lessons.ts` as a list of steps (`dialogue`, `quest`, `scene`,
   `choice`, `conversation`, `reflection`, `challenge`, ending with the challenge) and list its slug on its path in
   `paths.ts`. Quest targets are spot ids in the map.
@@ -196,6 +223,17 @@ src/app/api/walk/chat/route.ts   # streaming character conversations
   `npx tsx scripts/build-web-fixture.ts <that folder>/package/json`, and run `npm test`.
 - **A new place** (Nazareth, Jerusalem, Gethsemane, the wilderness): they're listed in `content/locations.ts` and on
   the in-game signpost. Each needs its own map builder like `buildCapernaum()`.
+
+## What's next
+
+- **Building and crafting**, Minecraft-style: a home, a workshop, a boat, a gathering place for fellowship, built
+  alongside Jesus the carpenter.
+- **More places:** Nazareth, the Mount of the Beatitudes, the wilderness, Jerusalem and the Temple, and the Garden
+  of Gethsemane, each with its own map and people.
+- **Bible-story quests:** hauling the miraculous catch of fish with Peter, preparing for the feeding of the 5,000,
+  sitting at the Sermon on the Mount, serving at the Last Supper.
+- **More mentors and paths:** lessons with John, Andrew, Thomas and the other disciples (fasting, worship,
+  forgiveness, serving, overcoming fear, daily time in the Word), and later Moses, David, Mary, Ruth and Paul.
 
 ## Limitations of this milestone
 
@@ -207,4 +245,6 @@ src/app/api/walk/chat/route.ts   # streaming character conversations
   `src/walk/safety/resources.ts` at least yearly.
 - Only the Sea of Galilee and Capernaum is explorable; the other places and the other nine mentors' lessons are
   listed as coming in later chapters.
+- Activities aren't saved part-way: closing the page in the middle of one gains nothing from it. The Sabbath and
+  the seasons aren't modelled yet.
 - No sound yet.

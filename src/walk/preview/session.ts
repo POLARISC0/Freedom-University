@@ -3,7 +3,7 @@ import type { FallbackStore, Store, WalkData } from "./store";
 // The preview's copy of the player's data. The in-browser actions change it at once and save in the background,
 // one write at a time, so the game never waits on storage.
 
-let data: WalkData = { progress: {}, journal: [], checkIns: [] };
+let data: WalkData = { progress: {}, journal: [], checkIns: [], life: null };
 let store: FallbackStore | null = null;
 let queue: Promise<void> = Promise.resolve();
 

@@ -6,8 +6,9 @@ import { db } from "@/lib/db";
 import { buildCharacterSystemPrompt, concernNote } from "@/walk/ai/prompts";
 import { HISTORY_LIMIT, refusalNote, resolveThread } from "@/walk/ai/threads";
 import { LESSONS } from "@/walk/content";
+import { friendship, relationshipLevel } from "@/walk/life";
 import { detectConcerns } from "@/walk/safety/concern";
-import { getConversation } from "@/walk/server/data";
+import { getConversation, getLife } from "@/walk/server/data";
 
 // A generous ceiling that keeps one account from running up the AI bill.
 const MESSAGES_PER_HOUR = 60;
@@ -65,18 +66,20 @@ export async function POST(request: Request) {
     );
   }
 
-  const completed = await db.walkLessonProgress.findMany({
-    where: { userId: user.id, status: "COMPLETED" },
-    select: { lessonSlug: true },
-  });
+  const [completed, life] = await Promise.all([
+    db.walkLessonProgress.findMany({ where: { userId: user.id, status: "COMPLETED" }, select: { lessonSlug: true } }),
+    getLife(user.id),
+  ]);
   const system: Anthropic.Beta.BetaTextBlockParam[] = [
     {
       type: "text",
       text: buildCharacterSystemPrompt({
         character,
         lesson,
-        playerName: user.username,
+        // The characters call the player by the name they chose for their character, once they have one.
+        playerName: life?.name ?? user.username,
         completedLessons: LESSONS.filter((l) => completed.some((c) => c.lessonSlug === l.slug)).map((l) => l.title),
+        friendship: life ? relationshipLevel(character.id, friendship(life.relationships, character.id)).label : undefined,
       }),
     },
   ];

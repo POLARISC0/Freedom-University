@@ -1,7 +1,17 @@
 import { CHARACTERS, TOWNSFOLK, type Appearance } from "@/walk/content";
 import { WalkGrid } from "../grid";
 import { fbm, rng } from "../noise";
-import { Tile, type ActivitySpot, type NpcDef, type Region, type ScheduleEntry, type Spot, type WorldMap, type WorldObject } from "../types";
+import {
+  Tile,
+  type ActivitySpot,
+  type NpcDef,
+  type Pose,
+  type Region,
+  type ScheduleEntry,
+  type Spot,
+  type WorldMap,
+  type WorldObject,
+} from "../types";
 
 // Capernaum on the north shore of the Sea of Galilee: the town Jesus made His home (Matthew 4:13). North is up;
 // the lake fills the south. Hills rise to the north-west, the Via Maris trade road runs east-west above the town,
@@ -153,6 +163,7 @@ export function buildCapernaum(): WorldMap {
   spot("meal-john", 35.5, 21.5, "Peter's table");
   spot("peter-rest", 33.5, 22.5, "Peter's courtyard");
   spot("jesus-rest", 35.5, 22.5, "Peter's courtyard");
+  spot("peter-courtyard", 36.5, 21.5, "Peter's courtyard");
   // Kept free of scattered trees and bushes.
   const reserved: [number, number, number, number][] = [[31, 17, 8, 7]];
 
@@ -288,36 +299,23 @@ export function buildCapernaum(): WorldMap {
     { name: "The Sea of Galilee", x: 0, y: 0, w: W, h: H },
   ];
 
-  // Mentors and disciples, each in the place Scripture suggests. Those with a daily routine (ROUTINES) follow it;
-  // the others stay near their place all day.
-  const characterHomes: Record<string, { spot: string; wander?: number }> = {
-    jesus: { spot: "jesus-home" },
-    peter: { spot: "peter-home" },
-    matthew: { spot: "matthew-home" },
-    andrew: { spot: "andrew-home", wander: 1 },
-    "james-zebedee": { spot: "james-zebedee-home" },
-    john: { spot: "john-home" },
-    thomas: { spot: "thomas-home", wander: 1 },
-    philip: { spot: "philip-home", wander: 2 },
-    bartholomew: { spot: "bartholomew-home" },
-    "james-alphaeus": { spot: "james-alphaeus-home", wander: 2 },
-    thaddaeus: { spot: "synagogue", wander: 1 },
-    "simon-zealot": { spot: "simon-zealot-home", wander: 1 },
-  };
+  // Places in the disciples' days.
   spot("thomas-home", 25.5, 17.5, "On the hill path");
   spot("philip-home", 52.5, 27.6, "The market");
   spot("james-alphaeus-home", 46, 31, "Carrying water");
   spot("simon-zealot-home", 66.5, roadRow(66) + 2.6, "Watching the road");
 
+  // Mentors and disciples, each living out their day in the places Scripture suggests (ROUTINES). A character
+  // without a routine yet waits in the market square.
   const npcs: NpcDef[] = CHARACTERS.map((c) => ({
     id: c.id,
     characterId: c.id,
     name: c.shortName,
     role: c.conversational ? "mentor" : "disciple",
     appearance: c.appearance,
-    home: ROUTINES[c.id]?.home ?? characterHomes[c.id]?.spot ?? "plaza",
+    home: ROUTINES[c.id]?.home ?? "plaza",
     schedule: ROUTINES[c.id]?.schedule,
-    wander: characterHomes[c.id]?.wander ?? 0,
+    wander: 1,
     speed: 2.4,
     facing: "down",
   }));
@@ -393,9 +391,9 @@ export function buildCapernaum(): WorldMap {
 }
 
 /**
- * Daily routines for Jesus and the disciples closest to Him, from what the Gospels show of their days in Capernaum.
- * `home` is the door they go in at when a routine takes them indoors. Jesus, Peter and Matthew are always outdoors
- * somewhere the player can walk to, so a lesson can be started at any hour.
+ * Daily routines for Jesus and the Twelve, from what the Gospels show of their days in Capernaum. `home` is the door
+ * they go in at when a routine takes them indoors. Jesus, Peter and Matthew are always outdoors somewhere the player
+ * can walk to, so a lesson can be started at any hour. To bring a new character to Capernaum, give them a routine.
  */
 const ROUTINES: Record<string, { home: string; schedule: ScheduleEntry[] }> = {
   jesus: {
@@ -455,7 +453,25 @@ const ROUTINES: Record<string, { home: string; schedule: ScheduleEntry[] }> = {
       { from: 21.5, to: 4.5, spot: null, wander: 0, doing: "Indoors for the night" },
     ],
   },
+  // The others keep to their usual place by day and go home at night (to town doors, door-0...door-9).
+  thomas: dayAt("thomas-home", 1, "door-0", "stand", "Walking the hill path, turning his questions over (John 14:5)"),
+  philip: dayAt("philip-home", 2, "door-4", "stand", "At the market, working out what bread costs (John 6:7)"),
+  bartholomew: dayAt("bartholomew-home", 0, "door-6", "sit", "Sitting under the fig tree (John 1:48)"),
+  "james-alphaeus": dayAt("james-alphaeus-home", 2, "door-7", "stand", "Carrying water for his neighbours (Mark 9:35)"),
+  thaddaeus: dayAt("synagogue", 1, "door-3", "stand", "Reading the Scriptures at the synagogue (Psalm 119:105)"),
+  "simon-zealot": dayAt("simon-zealot-home", 1, "door-2", "stand", "Watching the road out of town (Luke 6:15)"),
 };
+
+/** A simple day: at one place from early morning to evening, indoors at night. */
+function dayAt(spot: string, wander: number, home: string, pose: Pose, doing: string): { home: string; schedule: ScheduleEntry[] } {
+  return {
+    home,
+    schedule: [
+      { from: 6.5, to: 20.5, spot, wander, pose, doing },
+      { from: 20.5, to: 6.5, spot: null, wander: 0, doing: "Indoors for the night" },
+    ],
+  };
+}
 
 const SKIN = ["#c48b62", "#a9734d", "#8d5a3b", "#b07a52", "#9b6644", "#7a4a30"];
 const HAIR = ["#1d1510", "#2b1d14", "#3b2b1f", "#4a3626"];

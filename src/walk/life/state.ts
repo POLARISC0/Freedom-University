@@ -68,7 +68,7 @@ const ISO_MAX = 40;
 export function cleanName(raw: unknown): string | null {
   if (typeof raw !== "string") return null;
   // Control characters and bidirectional overrides have no place in a name and can disguise one.
-  const name = raw.replace(/[\p{Cc}‪-‮⁦-⁩]/gu, "").replace(/\s+/g, " ").trim();
+  const name = raw.replace(/[\p{Cc}\u202a-\u202e\u2066-\u2069]/gu, "").replace(/\s+/g, " ").trim();
   return name.length >= 1 && name.length <= NAME_MAX ? name : null;
 }
 
@@ -247,12 +247,12 @@ export function recordLessonComplete(life: LifeState, lesson: Lesson): LifeState
   };
 }
 
-/** The player checked in for the day. */
+/** The player checked in for the day (call once per new check-in). */
 export function recordCheckIn(life: LifeState): LifeState {
   return { ...life, needs: addNeeds(life.needs, CHECK_IN_NEEDS), counters: bump(life.counters, "checkin") };
 }
 
-/** The player wrote in the Walk Journal. */
+/** The player wrote a new entry in the Walk Journal (not for edits). */
 export function recordJournal(life: LifeState, kind: JournalKind): LifeState {
   return { ...life, needs: addNeeds(life.needs, JOURNAL_NEEDS[kind] ?? {}), counters: bump(life.counters, `journal:${kind}`) };
 }

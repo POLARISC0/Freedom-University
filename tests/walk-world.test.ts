@@ -82,6 +82,8 @@ describe("Capernaum map", () => {
     expect(map.objects.find((o) => o.kind === "cookfire")?.light).toBeDefined();
     const world = new World(map);
     expect(world.regionAt(spotOf("meal-spot"))).toBe("Peter's house");
+    expect(world.regionAt(map.spots["peter-courtyard"])).toBe("Peter's house");
+    expect(findPath(grid, map.spawn, map.spots["peter-courtyard"])).not.toBeNull();
     expect(world.regionAt(map.spots["player-house"])).toBe("Your house");
     expect(world.regionAt(map.spawn)).toBe("Your house");
     expect(map.spots["player-house"].label).toBe("Your house");
@@ -473,8 +475,9 @@ describe("activities", () => {
     expect(dist(jesus.pos, map.spots["prayer-rock"])).toBeLessThan(3);
   });
 
-  it("sleeps after midnight until six the same morning", () => {
+  it("sleeps after midnight until six the same morning, on the dot", () => {
     const world = worldAt({ minutes: hours(2), day: 3 }, spotOf("sleep-spot"));
+    world.clock.advance(0.37);
     expect(world.startActivity("sleep-spot")).toBe(true);
     run(world, 12, () => world.player.activity === null);
     expect(world.clock.day).toBe(3);

@@ -26,6 +26,7 @@ model User {
   journal      WalkJournalEntry[]
   walkMessages WalkMessage[]
   checkIns     WalkCheckIn[]
+  walkLife     WalkLife?
 }
 
 model Session {
@@ -176,4 +177,15 @@ model WalkCheckIn {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, day])
+}
+
+model WalkLife {
+  userId    String   @id
+  // The player's character and life in the world (name, appearance, needs, friendships, badges) as one JSON
+  // document. It is read and written only through parseLife (src/walk/life/state.ts), which trusts nothing in it.
+  data      Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

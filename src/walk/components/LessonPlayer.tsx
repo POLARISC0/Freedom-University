@@ -20,6 +20,8 @@ export interface LessonPlayerProps {
   mode: "world" | "standalone";
   onProgress: (view: LessonProgressView) => void;
   onJournalEntry?: (entry: JournalEntryView) => void;
+  /** A message was sent to the mentor in the lesson's conversation. */
+  onMessageSent?: () => void;
   /** World mode: close the panel so the player can walk to the quest target. */
   onSetOut?: () => void;
   /** World mode: walk the player to a spot automatically. */
@@ -130,7 +132,13 @@ export function LessonPlayer(props: LessonPlayerProps) {
       case "conversation":
         body = (
           <div className="space-y-4">
-            <ChatPanel character={mentor} lessonSlug={lesson.slug} intro={step.intro} suggestions={step.suggestions} />
+            <ChatPanel
+              character={mentor}
+              lessonSlug={lesson.slug}
+              intro={step.intro}
+              suggestions={step.suggestions}
+              onMessageSent={props.onMessageSent}
+            />
             <div className="border-t border-line pt-3">
               <ContinueButton pending={pending} onClick={next} label="Continue the lesson" />
             </div>

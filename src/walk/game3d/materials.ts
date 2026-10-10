@@ -1,5 +1,6 @@
 // Shared materials. Every textured material understands a per-vertex `sway` attribute, so trees, reeds, wheat and
-// sails move in the wind in the vertex shader while staying merged into a handful of static meshes.
+// sails move in the wind in the vertex shader while staying merged into a handful of static meshes. They also
+// darken under passing cloud shadows on cloudy days.
 
 import * as THREE from "three";
 import { makeTexture, type TextureKey } from "./textures";
@@ -10,12 +11,17 @@ export interface SharedUniforms {
   uTime: { value: number };
   /** Wind, 0..1. */
   uWind: { value: number };
+  /** How dark cloud shadows are, 0 (clear sky or night) to about 0.5. */
+  uCloudShadow: { value: number };
+  /** How far the clouds have drifted, in blocks. */
+  uCloudOffset: { value: THREE.Vector2 };
 }
 
 const SWAY_VERTEX_PARS = /* glsl */ `
 attribute float sway;
 uniform float uTime;
 uniform float uWind;
+varying vec2 vCloudXZ;
 `;
 
 // Sway grows with the wind and differs from place to place, so a grove ripples rather than nodding in step.
@@ -31,15 +37,48 @@ if (sway > 0.0) {
 }
 `;
 
+// Soft shadows of clouds drifting over the land: two octaves of value noise, moving with the wind.
+const CLOUD_FRAGMENT_PARS = /* glsl */ `
+uniform float uCloudShadow;
+uniform vec2 uCloudOffset;
+varying vec2 vCloudXZ;
+float cloudHash(vec2 p) {
+  return fract(sin(dot(p, vec2(41.3, 289.1))) * 43758.5453);
+}
+float cloudNoise(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  float a = cloudHash(i);
+  float b = cloudHash(i + vec2(1.0, 0.0));
+  float c = cloudHash(i + vec2(0.0, 1.0));
+  float d = cloudHash(i + vec2(1.0, 1.0));
+  return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+}
+`;
+
+const CLOUD_FRAGMENT = /* glsl */ `
+if (uCloudShadow > 0.0) {
+  vec2 q = (vCloudXZ + uCloudOffset) * 0.1;
+  float n = cloudNoise(q) * 0.65 + cloudNoise(q * 2.3 + 7.1) * 0.35;
+  outgoingLight *= 1.0 - uCloudShadow * smoothstep(0.48, 0.62, n);
+}
+#include <opaque_fragment>
+`;
+
 function patchSway(material: THREE.Material, uniforms: SharedUniforms) {
   material.onBeforeCompile = (shader) => {
-    shader.uniforms.uTime = uniforms.uTime;
-    shader.uniforms.uWind = uniforms.uWind;
+    Object.assign(shader.uniforms, uniforms);
     shader.vertexShader = shader.vertexShader
       .replace("#include <common>", `#include <common>\n${SWAY_VERTEX_PARS}`)
-      .replace("#include <begin_vertex>", SWAY_VERTEX);
+      .replace("#include <begin_vertex>", SWAY_VERTEX)
+      // After skinning, so people walking under a cloud are shaded where they stand.
+      .replace("#include <project_vertex>", "#include <project_vertex>\nvCloudXZ = (modelMatrix * vec4(transformed, 1.0)).xz;");
+    shader.fragmentShader = shader.fragmentShader
+      .replace("#include <common>", `#include <common>\n${CLOUD_FRAGMENT_PARS}`)
+      .replace("#include <opaque_fragment>", CLOUD_FRAGMENT);
   };
-  material.customProgramCacheKey = () => "walk-sway";
+  material.customProgramCacheKey = () => "walk-world";
 }
 
 const TEXTURED: TextureKey[] = [
@@ -64,7 +103,12 @@ const TEXTURED: TextureKey[] = [
 
 /** The world's materials, created once and shared by every mesh. */
 export class Materials {
-  readonly uniforms: SharedUniforms = { uTime: { value: 0 }, uWind: { value: 0.2 } };
+  readonly uniforms: SharedUniforms = {
+    uTime: { value: 0 },
+    uWind: { value: 0.2 },
+    uCloudShadow: { value: 0 },
+    uCloudOffset: { value: new THREE.Vector2() },
+  };
   /** Window and lantern glass: dark by day, warm light at night. */
   readonly glow: THREE.MeshLambertMaterial;
   /** Flames are always bright. */

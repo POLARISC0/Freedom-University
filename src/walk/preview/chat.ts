@@ -1,6 +1,7 @@
 import { buildCharacterSystemPrompt, concernNote } from "@/walk/ai/prompts";
 import { HISTORY_LIMIT, refusalNote, resolveThread } from "@/walk/ai/threads";
 import { LESSONS } from "@/walk/content";
+import { friendship, relationshipLevel } from "@/walk/life";
 import { detectConcerns } from "@/walk/safety/concern";
 import { isCapabilityError, getCapability, type Sample, type SampleTurn } from "./capabilities";
 import { activeStore, current, newId, persist } from "./session";
@@ -104,13 +105,14 @@ async function handlePost(rawBody: unknown, signal: AbortSignal | undefined): Pr
     .map((m) => ({ role: m.role, content: m.content }));
   while (history[0]?.role === "assistant") history.shift();
 
-  const progress = current().progress;
+  const { progress, life } = current();
   const instructions = [
     buildCharacterSystemPrompt({
       character,
       lesson,
-      playerName: "friend",
+      playerName: life?.name ?? "friend",
       completedLessons: LESSONS.filter((l) => progress[l.slug]?.status === "completed").map((l) => l.title),
+      friendship: life ? relationshipLevel(character.id, friendship(life.relationships, character.id)).label : undefined,
     }),
   ];
   const concerns = detectConcerns(message);

@@ -186,7 +186,6 @@ const PAINTERS: Record<TextureKey, Painter> = {
     p.flecks("#8a6a4c", 10);
   },
   leaves: (p) => {
-    p.noise("#ffffff", 0.0);
     // Leaf texture is pale and patterned; vertex colours give each tree its green.
     for (let y = 0; y < TEXTURE_SIZE; y++) {
       for (let x = 0; x < TEXTURE_SIZE; x++) {

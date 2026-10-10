@@ -1,5 +1,5 @@
 import { getCharacter } from "@/walk/content";
-import { activityMinutes, getActivity, unavailableReason } from "@/walk/life/activities";
+import { activityEnd, getActivity, unavailableReason } from "@/walk/life/activities";
 import type { ActivityDef } from "@/walk/life/types";
 import { WorldClock } from "./clock";
 import { Emitter } from "./events";
@@ -251,6 +251,7 @@ export class World {
     const spot = this.activitySpot(spotId);
     const def = spot ? getActivity(spot.activity) : undefined;
     if (!spot || !def) return false;
+    // A little slack: the player may have drifted a step since the activity was offered.
     if (this.distance(this.player.pos, spot) > spot.radius + 0.25 || this.reasonFor(spot, def) !== null) return false;
 
     const p = this.player;
@@ -265,7 +266,7 @@ export class World {
 
     const start = this.clock.total;
     const company = this.nearbyCharacters();
-    this.activityClock = { start, end: start + activityMinutes(def, this.clock.minutes), company };
+    this.activityClock = { start, end: activityEnd(def, start), company };
     this.setNearby(null);
     this.events.emit("activityStart", { activity: def.id, spotId: spot.id, nearby: company });
     return true;
@@ -503,7 +504,7 @@ export class World {
   private place(npc: NpcState, plan: Plan) {
     const at = this.standPoint(plan.spot ?? npc.def.home, plan.offsetForMentor);
     Object.assign(npc, {
-      pos: at,
+      pos: { ...at },
       anchor: at,
       path: [],
       moving: false,
@@ -666,7 +667,8 @@ export class World {
     const npc = this.npcs.find((n) => n.def.characterId === def.withCharacter);
     const there =
       npc?.visible && !npc.moving && npc.path.length === 0 && this.distance(npc.pos, spot) <= WITH_CHARACTER_RADIUS;
-    return there ? null : `${getCharacter(def.withCharacter)?.shortName ?? "They"} isn't here just now.`;
+    const name = getCharacter(def.withCharacter)?.shortName;
+    return there ? null : name ? `${name} isn't here just now.` : "Not just now.";
   }
 
   private interactablePosition(id: string): Vec | null {

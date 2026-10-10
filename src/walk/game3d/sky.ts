@@ -44,8 +44,10 @@ export class Sky {
   private cloudMaterial: THREE.MeshLambertMaterial;
   private cloudUniforms = { uTarget: { value: new THREE.Vector3() }, uOpacity: { value: 0 } };
   private cloudSeeds: { x: number; z: number; y: number; scale: number; speed: number }[] = [];
-  private drift = 0;
+  /** How far the clouds have drifted east, in blocks; cloud shadows on the ground follow it. */
+  drift = 0;
   private readonly matrix = new THREE.Matrix4();
+  private readonly sunWhite = new THREE.Color(0xfff6d8);
   private readonly span: { x0: number; x1: number; z0: number; z1: number };
 
   constructor(bounds: { width: number; height: number }) {
@@ -70,11 +72,12 @@ export class Sky {
     this.group.add(this.dome);
 
     // Stars scattered over the upper sky.
-    const starCount = 420;
+    const starCount = 600;
     const positions = new Float32Array(starCount * 3);
     for (let i = 0; i < starCount; i++) {
       const a = hash2(i, 1, 70) * Math.PI * 2;
-      const up = 0.08 + hash2(i, 2, 70) * 0.92;
+      // More of them low in the sky, where a close-up camera can see them.
+      const up = 0.03 + Math.pow(hash2(i, 2, 70), 1.8) * 0.97;
       const r = Math.sqrt(1 - up * up);
       positions.set([Math.cos(a) * r * 360, up * 360, Math.sin(a) * r * 360], i * 3);
     }
@@ -82,7 +85,7 @@ export class Sky {
     starGeometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
     this.stars = new THREE.Points(
       starGeometry,
-      new THREE.PointsMaterial({ color: 0xfff8e8, size: 2, sizeAttenuation: false, transparent: true, opacity: 0, depthWrite: false, fog: false }),
+      new THREE.PointsMaterial({ color: 0xfff8e8, size: 2.5, sizeAttenuation: false, transparent: true, opacity: 0, depthWrite: false, fog: false }),
     );
     this.stars.frustumCulled = false;
     this.stars.renderOrder = -9;
@@ -101,14 +104,15 @@ export class Sky {
     this.moon.renderOrder = -8;
     this.group.add(this.sun, this.moon);
 
-    // Clouds: one blocky cluster shape, instanced at different sizes.
+    // Clouds: flat, blocky slabs as in Minecraft, one shape instanced at different sizes.
     const b = new VoxelBuilder();
     const puffs: [number, number, number, number, number, number][] = [
-      [-2.5, 0, -1.5, 2.5, 1, 1.5],
-      [-1.5, 0.8, -1, 1.8, 1.7, 1.2],
-      [-4, 0.1, -1, -2.2, 0.9, 1],
-      [2.2, 0.1, -1.1, 3.8, 0.8, 0.9],
-      [-0.6, 1.5, -0.6, 0.9, 2.1, 0.7],
+      [-4, 0, -2.5, 4, 1, 2.5],
+      [-2, 0, -4, 3, 1, -2.5],
+      [-6, 0, -1, -4, 1, 2],
+      [4, 0, -1.5, 6, 1, 1],
+      [-1, 0, 2.5, 2, 1, 3.5],
+      [-2, 1, -1.5, 2, 1.6, 1.5],
     ];
     for (const [x0, y0, z0, x1, y1, z1] of puffs) b.box("cloud", [x0, y0, z0], [x1, y1, z1], 0xffffff, { bottom: true });
     const geometry = b.build().get("cloud")!;
@@ -126,7 +130,7 @@ export class Sky {
           "#include <opaque_fragment>",
           `#include <opaque_fragment>
           // Thin out over the player and near the camera, so the clouds frame the view rather than hide it.
-          float clear = smoothstep(9.0, 20.0, length(vCloudWorld.xz - uTarget.xz)) * smoothstep(6.0, 16.0, distance(vCloudWorld, cameraPosition));
+          float clear = smoothstep(10.0, 24.0, length(vCloudWorld.xz - uTarget.xz)) * smoothstep(8.0, 20.0, distance(vCloudWorld, cameraPosition));
           gl_FragColor.a *= uOpacity * clear;`,
         );
     };
@@ -138,7 +142,7 @@ export class Sky {
       this.cloudSeeds.push({
         x: this.span.x0 + hash2(i, 3, 71) * (this.span.x1 - this.span.x0),
         z: this.span.z0 + hash2(i, 4, 71) * (this.span.z1 - this.span.z0),
-        y: 13 + hash2(i, 5, 71) * 4,
+        y: 22 + hash2(i, 5, 71) * 5,
         scale: 0.8 + hash2(i, 6, 71) * 0.9,
         speed: 0.7 + hash2(i, 7, 71) * 0.6,
       });
@@ -171,7 +175,7 @@ export class Sky {
     this.sun.position.copy(camera.position).addScaledVector(sunDir, 340);
     this.sun.lookAt(camera.position);
     this.sun.material.opacity = THREE.MathUtils.clamp(sunDir.y * 6 + 0.3, 0, 1) * (1 - cloud * 0.85);
-    this.sun.material.color.copy(colors.sun).lerp(new THREE.Color(0xfff6d8), 0.5);
+    this.sun.material.color.copy(colors.sun).lerp(this.sunWhite, 0.5);
     this.sun.visible = this.sun.material.opacity > 0.01;
     this.moon.position.copy(camera.position).addScaledVector(moonDir, 340);
     this.moon.lookAt(camera.position);
@@ -181,7 +185,7 @@ export class Sky {
     // Clouds drift downwind and wrap around; more of them, and thicker, as the sky clouds over.
     this.drift += dt * (0.4 + wind * 2.2);
     this.cloudUniforms.uTarget.value.copy(target);
-    this.cloudUniforms.uOpacity.value = 0.25 + cloud * 0.65;
+    this.cloudUniforms.uOpacity.value = 0.55 + cloud * 0.35;
     const shown = Math.round(4 + cloud * (CLOUD_COUNT - 4));
     const width = this.span.x1 - this.span.x0;
     this.cloudSeeds.forEach((c, i) => {

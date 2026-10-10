@@ -40,7 +40,7 @@ export interface HeightField {
 /**
  * Work out every tile's height. Water and the beach sit low, the town a block up, and the hills to the north-west
  * rise in half-block terraces: higher the further they are from the lowland and the closer to the north-west corner,
- * with a little noise so the slopes feel natural. Paths through the hills are smoothed so they climb gently, and no
+ * with broad noise so the slopes roll naturally. Paths through the hills are smoothed so they climb gently, and no
  * two neighbouring land tiles differ by more than one half-block step.
  */
 export function buildHeights(map: Pick<WorldMap, "width" | "height" | "tiles">): HeightField {
@@ -104,9 +104,10 @@ export function buildHeights(map: Pick<WorldMap, "width" | "height" | "tiles">):
     for (let x = 0; x < w; x++) {
       const i = y * w + x;
       if (!zone[i]) continue;
-      const fromEdge = Math.min(Number.isFinite(dist[i]) ? dist[i] : 12, 9);
+      const fromEdge = Math.min(Number.isFinite(dist[i]) ? dist[i] : 12, 12);
       const northWest = Math.max(0, Math.min(1, 1 - (x + y) / 45));
-      raw[i] = Math.max(0, fromEdge * 0.32 + northWest * 1.2 + (fbm(x * 0.11, y * 0.11, 31) - 0.5) * 1.4);
+      // Broad swells and hollows so the hilltops roll in terraces rather than sitting flat.
+      raw[i] = Math.max(0, fromEdge * 0.25 + northWest * 2 + (fbm(x * 0.08, y * 0.08, 31, 2) - 0.5) * 5);
     }
   }
   // Paths take the average of the hillside around them, so they climb steadily instead of following every bump.
@@ -137,8 +138,26 @@ export function buildHeights(map: Pick<WorldMap, "width" | "height" | "tiles">):
     if (zone[i]) heights[i] += Math.round(smoothed[i] / STEP) * STEP;
   }
 
-  // Limit every land step to half a block, by lowering the higher side until nothing changes.
   const land = (i: number) => !isWater(tiles[i] as Tile) && tiles[i] !== Tile.Jetty;
+
+  // Fill narrow hollows and level narrow bumps on the hills (a tile with three of its four neighbours higher, or
+  // lower): they read as holes and posts, not as a hillside.
+  for (let pass = 0; pass < 3; pass++) {
+    for (let y = 1; y < h - 1; y++) {
+      for (let x = 1; x < w - 1; x++) {
+        const i = y * w + x;
+        if (!zone[i]) continue;
+        const around = [i - 1, i + 1, i - w, i + w].filter(land).map((k) => heights[k]);
+        if (around.length < 4) continue;
+        const higher = around.filter((v) => v > heights[i]);
+        const lower = around.filter((v) => v < heights[i]);
+        if (higher.length >= 3) heights[i] = Math.min(...higher);
+        else if (lower.length >= 3) heights[i] = Math.max(...lower);
+      }
+    }
+  }
+
+  // Limit every land step to half a block, by lowering the higher side until nothing changes.
   for (let changed = true, guard = 0; changed && guard < 64; guard++) {
     changed = false;
     for (let pass = 0; pass < 2; pass++) {

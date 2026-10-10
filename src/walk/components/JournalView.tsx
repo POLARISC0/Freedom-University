@@ -22,13 +22,18 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" });
 }
 
-/** The Walk Journal: write reflections and prayers, read them back, edit or delete them. */
+/**
+ * The Walk Journal: write reflections and prayers, read them back, edit or delete them. `onEntryAdded` hears about
+ * each new entry (not edits).
+ */
 export function JournalView({
   entries,
   onEntriesChange,
+  onEntryAdded,
 }: {
   entries: JournalEntryView[];
   onEntriesChange: React.Dispatch<React.SetStateAction<JournalEntryView[]>>;
+  onEntryAdded?: (entry: JournalEntryView) => void;
 }) {
   const [filter, setFilter] = useState<JournalKind | "all">("all");
   const [editing, setEditing] = useState<JournalEntryView | null>(null);
@@ -43,6 +48,7 @@ export function JournalView({
         onSaved={(entry) => {
           const edited = Boolean(editing);
           onEntriesChange((list) => (edited ? list.map((e) => (e.id === entry.id ? entry : e)) : [entry, ...list]));
+          if (!edited) onEntryAdded?.(entry);
           setCare(detectConcerns(`${entry.title ?? ""}\n${entry.body}`));
           setEditing(null);
         }}

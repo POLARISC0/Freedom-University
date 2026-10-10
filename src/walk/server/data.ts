@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
+import { parseLife, type LifeState } from "@/walk/life";
 import { JOURNAL_KINDS, MOODS, type CheckInView, type JournalEntryView, type LessonProgressView, type ProgressMap } from "@/walk/progress";
 
 type ProgressRow = Awaited<ReturnType<typeof db.walkLessonProgress.findFirstOrThrow>>;
@@ -48,6 +49,12 @@ export async function getRecentCheckIns(userId: string, take = 31): Promise<Chec
     mood: (MOODS as readonly string[]).includes(r.mood) ? (r.mood as CheckInView["mood"]) : "peaceful",
     note: r.note,
   }));
+}
+
+/** The player's life in the world, or null before they have made their character (or if the save is unusable). */
+export async function getLife(userId: string): Promise<LifeState | null> {
+  const row = await db.walkLife.findUnique({ where: { userId } });
+  return row ? parseLife(row.data) : null;
 }
 
 export async function getConversation(userId: string, characterId: string, thread: string, take = 40) {

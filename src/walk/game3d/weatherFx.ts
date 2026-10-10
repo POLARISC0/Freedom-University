@@ -6,7 +6,7 @@ import { valueNoise } from "@/walk/world/noise";
 import { makeCanvas } from "@/walk/game/art/color";
 import { WATER_LEVEL } from "./heights";
 
-const MAX_DROPS = 1800;
+const MAX_DROPS = 2600;
 const BOX = { w: 34, h: 18 };
 
 const RAIN_VERTEX = /* glsl */ `
@@ -22,7 +22,7 @@ void main() {
   vec3 p = vec3(uCenter.x + (seed.x - 0.5) * ${BOX.w.toFixed(1)}, uCenter.y - 2.0 + y, uCenter.z + (seed.z - 0.5) * ${BOX.w.toFixed(1)});
   // The bottom end of each streak trails behind the top, slanting with the wind.
   vec3 dir = normalize(vec3(uWind * 0.6, -1.0, uWind * 0.15));
-  p += dir * seed.w * 0.55;
+  p += dir * seed.w * 0.8;
   p.x += uWind * (${BOX.h.toFixed(1)} - y) * 0.25;
   vAlpha = smoothstep(0.0, 2.0, y) * smoothstep(${BOX.h.toFixed(1)}, ${(BOX.h - 3).toFixed(1)}, y);
   vec4 mvPosition = modelViewMatrix * vec4(p, 1.0);
@@ -48,6 +48,7 @@ export class WeatherEffects {
   private rain: THREE.LineSegments<THREE.BufferGeometry, THREE.ShaderMaterial>;
   private mist: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>[] = [];
   private mistTexture: THREE.Texture;
+  private readonly white = new THREE.Color(0xffffff);
 
   constructor() {
     const seeds = new Float32Array(MAX_DROPS * 2 * 4);
@@ -116,8 +117,8 @@ export class WeatherEffects {
     u.uTime.value = t;
     u.uCenter.value.copy(center);
     u.uWind.value = levels.wind;
-    u.uOpacity.value = 0.28 + levels.rain * 0.3;
-    u.uColor.value.copy(light).lerp(new THREE.Color(0xdde6f0), 0.6);
+    u.uOpacity.value = 0.35 + levels.rain * 0.35;
+    u.uColor.value.copy(light).lerp(this.white, 0.75);
 
     for (const [i, m] of this.mist.entries()) {
       m.material.opacity = levels.fog * 0.55 * (m.userData.alpha as number);
@@ -127,7 +128,7 @@ export class WeatherEffects {
       // The texture stays put in the world as the sheet follows the camera, and drifts slowly downwind.
       const drift = t * (0.004 + i * 0.002) * (1 + levels.wind * 3);
       m.material.map!.offset.set(center.x / 30 + drift, -center.z / 30 + drift * 0.4);
-      m.material.color.copy(light).lerp(new THREE.Color(0xffffff), 0.35);
+      m.material.color.copy(light).lerp(this.white, 0.35);
     }
   }
 

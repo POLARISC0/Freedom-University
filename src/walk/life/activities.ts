@@ -160,9 +160,17 @@ export function unavailableReason(def: ActivityDef, minutes: number, weather: Pi
   return null;
 }
 
-/** Game minutes an activity takes when started at `minutes` after midnight (sleep runs on to `untilHour`). */
+/**
+ * When an activity started at `startTotal` ends, both as game minutes since the walk began (WorldClock.total).
+ * Sleep runs on to the next `untilHour`, exactly.
+ */
+export function activityEnd(def: ActivityDef, startTotal: number): number {
+  if (def.untilHour === undefined) return startTotal + def.minutes;
+  const until = Math.floor(startTotal / DAY_MINUTES) * DAY_MINUTES + def.untilHour * 60;
+  return until > startTotal ? until : until + DAY_MINUTES;
+}
+
+/** Game minutes an activity takes when started at `minutes` after midnight. */
 export function activityMinutes(def: ActivityDef, minutes: number): number {
-  if (def.untilHour === undefined) return def.minutes;
-  const until = def.untilHour * 60;
-  return until > minutes ? until - minutes : until + DAY_MINUTES - minutes;
+  return activityEnd(def, minutes) - minutes;
 }

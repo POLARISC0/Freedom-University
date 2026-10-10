@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { getLesson, LESSONS, PATHS } from "@/walk/content";
 import {
   ACTIVITIES,
+  activityEnd,
   activityMinutes,
   addFriendship,
   addNeeds,
@@ -190,6 +191,10 @@ describe("activities", () => {
     expect(activityMinutes(activity("sleep"), at(22))).toBe(8 * 60);
     expect(activityMinutes(activity("sleep"), at(2))).toBe(4 * 60);
     expect(activityMinutes(activity("pray"), at(2))).toBe(30);
+    // Exactly six o'clock, whatever odd minute it started at.
+    expect(activityEnd(activity("sleep"), 3 * DAY_MINUTES + at(22) + 0.37)).toBe(4 * DAY_MINUTES + at(6));
+    expect(activityEnd(activity("sleep"), 3 * DAY_MINUTES + at(2) + 0.37)).toBe(3 * DAY_MINUTES + at(6));
+    expect(activityEnd(activity("pray"), 1000)).toBe(1030);
   });
 });
 
@@ -268,6 +273,8 @@ describe("badges", () => {
   it("count check-ins and journal entries", () => {
     const checkIns = Array.from({ length: 7 }, (_, i) => ({ day: `2026-10-0${i + 1}`, mood: "peaceful" as const, note: null }));
     expect(newlyEarned(ctx(base(), { checkIns })).map((b) => b.id)).toEqual(["faithful-in-little"]);
+    const sameDay = Array.from({ length: 7 }, () => ({ day: "2026-10-01", mood: "joyful" as const, note: null }));
+    expect(newlyEarned(ctx(base(), { checkIns: sameDay }))).toEqual([]);
     let life = base();
     for (let i = 0; i < 5; i++) life = recordJournal(life, i % 2 ? "prayer" : "gratitude");
     expect(newlyEarned(ctx(life)).map((b) => b.id)).toEqual(["journal-keeper"]);
@@ -309,7 +316,7 @@ describe("a new life", () => {
 
   it("tidies names, refusing empty or overlong ones", () => {
     expect(cleanName("  Ruth ")).toBe("Ruth");
-    expect(cleanName("Ru\u0000th‮")).toBe("Ruth");
+    expect(cleanName("Ru\u0000th\u202e")).toBe("Ruth");
     expect(cleanName("   ")).toBeNull();
     expect(cleanName("x".repeat(41))).toBeNull();
     expect(cleanName("x".repeat(40))).toHaveLength(40);

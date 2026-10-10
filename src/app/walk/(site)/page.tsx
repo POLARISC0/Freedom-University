@@ -20,9 +20,9 @@ export default async function WalkHome() {
             Walk With Him
           </h1>
           <p className="text-lg leading-relaxed text-muted">
-            Many people never had a father or a mentor to teach them how to live. Scripture can. Walk the shore of
-            the Sea of Galilee, meet the people who walked with Jesus, and learn from them: how to pray, how to
-            trust, how to give, how to get back up.
+            Many people never had a father or a mentor to teach them how to live. Scripture can. Make your own
+            character, walk the shore of the Sea of Galilee, live alongside the people who walked with Jesus, and
+            learn from them: how to pray, how to trust, how to give, how to get back up.
           </p>
           <div className="flex flex-wrap gap-3">
             <Link href={play} className="btn-primary !px-6 !py-3 !text-base">
@@ -42,11 +42,24 @@ export default async function WalkHome() {
         </div>
       </section>
 
-      <section className="grid gap-4 sm:grid-cols-3">
+      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
-          ["👣 Walk the world", "Explore Capernaum by the lake: fishing boats, the market, the tax booth, the quiet hills. Day turns to night as you walk."],
-          ["💬 Learn from mentors", "Each character teaches from Scripture with chapter and verse, so you can read it yourself. Ask them your own questions."],
-          ["✍️ Reflect and practise", "Every lesson ends with a reflection for your private Walk Journal and a real-life challenge for your week."],
+          [
+            "👣 Walk the world",
+            "Explore Capernaum and the Sea of Galilee in 3D: fishing boats, the market, the synagogue, the quiet hills. Turn and zoom the view as day turns to night, mist rises off the lake and the weather changes.",
+          ],
+          [
+            "🌱 Grow day by day",
+            "Five gentle needs (Prayer, Word, Fellowship, Service and Rest) grow as you pray in the quiet place, read the scroll, share a meal, lend a hand and rest. An invitation, never a score.",
+          ],
+          [
+            "💬 Learn from mentors",
+            "Jesus, Peter and Matthew keep daily routines from the Gospels. Walk up and ask your own questions: every teaching cites chapter and verse, and friendships grow as you spend time together.",
+          ],
+          [
+            "✍️ Reflect and practise",
+            "Every lesson ends with a reflection for your private Walk Journal and a real-life challenge for your week. Growth badges mark the way, with no leaderboards.",
+          ],
         ].map(([title, body]) => (
           <div key={title} className="rounded-xl bg-surface-2/70 p-5">
             <h2 className="font-semibold">{title}</h2>
