@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 import { db } from "./db";
+import { hashPassword, verifyPassword } from "./password";
 
 export const SESSION_COOKIE = "fu_session";
 const SESSION_DAYS = 30;
@@ -17,20 +18,50 @@ function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
 }
 
+export type SignInResult = { ok: true } | { ok: false; error: string };
+
 /**
- * Username-only sign-in: the account is created on first use.
- * There is no password, so anyone who knows a username can use that account.
+ * Sign in with a username and password. New usernames create an account with that password. Accounts created
+ * before passwords existed have no hash yet: the first password used to sign in to one becomes its password.
  */
-export async function startSession(username: string): Promise<void> {
-  const user = await db.user.upsert({
-    where: { username },
-    update: {},
-    create: { username },
-  });
+export async function signInWithPassword(
+  username: string,
+  password: string,
+  /** Called before creating a new account; return false to refuse (rate limiting). */
+  allowSignUp: () => boolean = () => true,
+): Promise<SignInResult> {
+  const existing = await db.user.findUnique({ where: { username } });
+  let userId: string;
+  if (!existing) {
+    if (!allowSignUp()) return { ok: false, error: "Too many new accounts from here. Please try again later." };
+    try {
+      const created = await db.user.create({ data: { username, passwordHash: await hashPassword(password) } });
+      userId = created.id;
+    } catch {
+      // Someone else took the username a moment ago.
+      return { ok: false, error: "That username was just taken. Please try again." };
+    }
+  } else if (existing.passwordHash) {
+    if (!(await verifyPassword(password, existing.passwordHash))) {
+      return { ok: false, error: "That username and password don't match." };
+    }
+    userId = existing.id;
+  } else {
+    // An account from before passwords: this password becomes its password, and every session started without
+    // one is signed out, so nobody who used the old username-only login keeps access.
+    await db.user.update({ where: { id: existing.id }, data: { passwordHash: await hashPassword(password) } });
+    await db.session.deleteMany({ where: { userId: existing.id } });
+    userId = existing.id;
+  }
+  await startSession(userId);
+  return { ok: true };
+}
+
+async function startSession(userId: string): Promise<void> {
   const token = randomBytes(32).toString("base64url");
   const expiresAt = new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000);
   await db.session.create({
-    data: { tokenHash: hashToken(token), userId: user.id, expiresAt },
+    data: { tokenHash: hashToken(token), userId, expiresAt },
   });
   (await cookies()).set(SESSION_COOKIE, token, {
     httpOnly: true,
@@ -62,9 +93,9 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   return session.user;
 });
 
-/** For pages: redirect to the login screen when nobody is signed in. */
-export async function requireUser(nextPath: string): Promise<CurrentUser> {
+/** For pages: redirect to a sign-in page when nobody is signed in. */
+export async function requireUser(nextPath: string, loginPath = "/login"): Promise<CurrentUser> {
   const user = await getCurrentUser();
-  if (!user) redirect(`/login?next=${encodeURIComponent(nextPath)}`);
+  if (!user) redirect(`${loginPath}?next=${encodeURIComponent(nextPath)}`);
   return user;
 }

@@ -1,0 +1,41 @@
+<title>Walk With Him</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400..700&family=Geist:wght@400..700&family=Geist+Mono:wght@400..600&display=swap">
+<style>
+  :root {
+    --font-geist-sans: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-geist-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    --font-serif-display: "Fraunces", ui-serif, Georgia, "Times New Roman", serif;
+    --page-bg: #22607f;
+    --page-ink: #2a2118;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --page-bg: #163f54;
+      --page-ink: #efe7d7;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --page-bg: #163f54;
+    --page-ink: #efe7d7;
+    color-scheme: dark;
+  }
+  /* The game's palette follows the viewer's chosen theme, not only the system setting. */
+  :root[data-theme="light"] .walk-theme {
+    --bg: #f3ead8; --surface: #fffaf0; --surface-2: #ece0c6; --ink: #2a2118; --muted: #6b5d48; --line: #ddcca9;
+    --brand: #275f6c; --brand-ink: #ffffff; --brand-soft: #dfecea; --gold: #b07a1e; --danger: #a3261c; --success: #2f6b3a;
+  }
+  :root[data-theme="dark"] .walk-theme {
+    --bg: #11161a; --surface: #182026; --surface-2: #212b32; --ink: #efe7d7; --muted: #a99c86; --line: #2f3b43;
+    --brand: #79c0cc; --brand-ink: #0d1a1d; --brand-soft: #1d3136; --gold: #e2b25a; --danger: #f2877c; --success: #7ccb8a;
+  }
+  html, body { height: 100%; margin: 0; background: var(--page-bg); color: var(--page-ink); }
+  body { font-family: var(--font-geist-sans); -webkit-font-smoothing: antialiased; overscroll-behavior: none; }
+  #root { min-height: 100%; }
+</style>
+<link rel="stylesheet" href="app.css">
+<div id="root" class="walk-theme"></div>
+<script src="app.js" defer></script>

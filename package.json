@@ -11,7 +11,8 @@
     "test": "vitest run",
     "postinstall": "prisma generate",
     "db:migrate": "prisma migrate dev",
-    "db:deploy": "prisma migrate deploy"
+    "db:deploy": "prisma migrate deploy",
+    "preview:build": "node scripts/build-preview.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.133.0",
@@ -24,15 +25,19 @@
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
     "server-only": "^0.0.1",
+    "three": "0.186.1",
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@tailwindcss/cli": "4.3.3",
     "@tailwindcss/turbopack": "^4",
     "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^22.20.5",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/three": "0.186.0",
     "dotenv": "^18.0.7",
+    "esbuild": "0.28.2",
     "eslint": "^9",
     "eslint-config-next": "16.4.0",
     "prisma": "^7.10.0",
