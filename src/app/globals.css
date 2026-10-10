@@ -71,6 +71,8 @@ body {
 .lesson-md li + li { margin-top: 0.25em; }
 .lesson-md a { color: var(--brand); text-decoration: underline; text-underline-offset: 2px; }
 .lesson-md code { font-family: var(--font-mono); font-size: 0.875em; background: var(--surface-2); padding: 0.1em 0.3em; border-radius: 4px; }
+.lesson-md pre { background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 0.75rem 1rem; overflow-x: auto; overflow-wrap: normal; line-height: 1.5; }
+.lesson-md pre code { background: none; padding: 0; border-radius: 0; font-size: 0.85em; white-space: pre; }
 .lesson-md blockquote { border-left: 3px solid var(--line); padding-left: 0.75rem; color: var(--muted); }
 .lesson-md table { width: 100%; border-collapse: collapse; font-size: 0.9em; display: block; overflow-x: auto; }
 .lesson-md th, .lesson-md td { border: 1px solid var(--line); padding: 0.35rem 0.6rem; text-align: left; }
