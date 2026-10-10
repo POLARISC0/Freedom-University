@@ -1,6 +1,6 @@
-// Freedom University data model.
-// Curriculum (professors, modules, objectives) lives in src/content as typed code;
-// the database stores everything that belongs to a student plus cached news.
+// Freedom University data model, shared with the Walk With Him game.
+// Curriculum (professors, modules, objectives) lives in src/content and game content in src/walk/content as typed
+// code; the database stores everything that belongs to a user plus cached news.
 
 generator client {
   provider = "prisma-client"
@@ -12,14 +12,20 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  username  String   @unique
-  createdAt DateTime @default(now())
+  id           String   @id @default(cuid())
+  username     String   @unique
+  // scrypt hash (see src/lib/password.ts). Null for accounts created before passwords existed.
+  passwordHash String?
+  createdAt    DateTime @default(now())
 
   sessions     Session[]
   progress     ModuleProgress[]
   quizAttempts QuizAttempt[]
   messages     ChatMessage[]
+  walkProgress WalkLessonProgress[]
+  journal      WalkJournalEntry[]
+  walkMessages WalkMessage[]
+  checkIns     WalkCheckIn[]
 }
 
 model Session {
@@ -96,4 +102,78 @@ model NewsBriefing {
   summary   String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Walk With Him
+
+model WalkLessonProgress {
+  id                  String    @id @default(cuid())
+  userId              String
+  lessonSlug          String
+  pathSlug            String
+  // Index of the step the player is on. Equals the number of steps once the lesson is complete.
+  stepIndex           Int       @default(0)
+  // "IN_PROGRESS" or "COMPLETED". Stays COMPLETED if the player replays the lesson.
+  status              String    @default("IN_PROGRESS")
+  // Options picked in "choice" steps, keyed by step index: { "4": "father" }.
+  choices             Json?
+  challengeAcceptedAt DateTime?
+  // The player says they did the week's challenge.
+  challengeDoneAt     DateTime?
+  startedAt           DateTime  @default(now())
+  completedAt         DateTime?
+  updatedAt           DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lessonSlug])
+  @@index([userId])
+}
+
+model WalkJournalEntry {
+  id         String   @id @default(cuid())
+  userId     String
+  // "reflection" | "prayer" | "gratitude" | "note"
+  kind       String
+  title      String?
+  body       String
+  // Set for reflections written during a lesson.
+  lessonSlug String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model WalkMessage {
+  id          String   @id @default(cuid())
+  userId      String
+  characterId String
+  // The lesson slug for conversations inside a lesson, "talk" for conversations outside one.
+  thread      String
+  role        String // "user" | "assistant"
+  content     String
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, characterId, thread, createdAt])
+  @@index([userId, createdAt])
+}
+
+model WalkCheckIn {
+  id        String   @id @default(cuid())
+  userId    String
+  // The player's local calendar date, YYYY-MM-DD.
+  day       String
+  mood      String
+  note      String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, day])
 }

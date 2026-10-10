@@ -76,3 +76,109 @@ body {
 .lesson-md th, .lesson-md td { border: 1px solid var(--line); padding: 0.35rem 0.6rem; text-align: left; }
 .lesson-md th { background: var(--surface-2); }
 .lesson-md hr { border-color: var(--line); }
+
+/* ---------------------------------------------------------------------------------------------------------------
+   Walk With Him: parchment and lake-water palette, scoped to the /walk section. */
+.walk-theme {
+  --bg: #f3ead8;
+  --surface: #fffaf0;
+  --surface-2: #ece0c6;
+  --ink: #2a2118;
+  --muted: #6b5d48;
+  --line: #ddcca9;
+  --brand: #275f6c;
+  --brand-ink: #ffffff;
+  --brand-soft: #dfecea;
+  --gold: #b07a1e;
+  --danger: #a3261c;
+  --success: #2f6b3a;
+}
+
+@media (prefers-color-scheme: dark) {
+  .walk-theme {
+    --bg: #11161a;
+    --surface: #182026;
+    --surface-2: #212b32;
+    --ink: #efe7d7;
+    --muted: #a99c86;
+    --line: #2f3b43;
+    --brand: #79c0cc;
+    --brand-ink: #0d1a1d;
+    --brand-soft: #1d3136;
+    --gold: #e2b25a;
+    --danger: #f2877c;
+    --success: #7ccb8a;
+  }
+}
+
+@theme inline {
+  --color-gold: var(--gold);
+}
+
+.walk-theme .scripture {
+  font-family: var(--font-serif);
+  font-style: italic;
+}
+
+.walk-labels {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.walk-label {
+  position: absolute;
+  left: 0;
+  top: 0;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(24, 18, 12, 0.62);
+  color: #fff8e8;
+  font: 600 11px/1.4 var(--font-geist-sans), system-ui, sans-serif;
+  white-space: nowrap;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.4);
+}
+.walk-label.is-badge {
+  background: rgba(120, 78, 14, 0.85);
+}
+.walk-label.is-near {
+  outline: 2px solid #ffe08a;
+}
+.walk-quest-arrow {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: none;
+  color: #ffd56a;
+  font-size: 26px;
+  line-height: 1;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
+  animation: walk-pulse 1.4s ease-in-out infinite;
+}
+@keyframes walk-pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .walk-quest-arrow {
+    animation: none;
+  }
+}
+.walk-game canvas {
+  display: block;
+  touch-action: none;
+}
+
+.walk-theme .btn-primary {
+  @apply inline-flex items-center justify-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-brand-ink shadow-sm transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50;
+}
+.walk-theme .btn-secondary {
+  @apply inline-flex items-center justify-center gap-1.5 rounded-lg border border-line bg-surface px-4 py-2 text-sm font-medium transition hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-50;
+}
+.walk-theme .btn-choice {
+  @apply rounded-lg border border-line bg-surface px-4 py-3 text-left font-medium transition hover:border-brand hover:bg-brand-soft;
+}
+.walk-theme .hud-button {
+  @apply inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-black/45 px-3 py-1.5 text-xs font-semibold text-white shadow backdrop-blur transition hover:bg-black/60;
+}

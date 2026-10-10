@@ -5,14 +5,17 @@ import { revalidatePath } from "next/cache";
 import { NEWS_PROFESSOR } from "@/content";
 import { AiRefusalError, writeNewsBriefing } from "@/lib/ai";
 import { describeApiError, hasAnthropicKey } from "@/lib/anthropic";
-import { endSession, getCurrentUser, startSession } from "@/lib/auth";
+import { endSession, getCurrentUser, signInWithPassword } from "@/lib/auth";
 import { todayUtc } from "@/lib/data";
 import { db } from "@/lib/db";
 import { fetchHeadlines, hasNewsKey, NewsConfigError } from "@/lib/news";
+import { isAcceptablePassword, PASSWORD_RULES } from "@/lib/password-rules";
 import { normalizeUsername, USERNAME_RULES } from "@/lib/username";
 
 export interface FormState {
   error?: string;
+  /** Echoed back so the sign-in form keeps the username after React resets it. */
+  username?: string;
 }
 
 /** Only allow redirects back into this site. */
@@ -22,9 +25,13 @@ function safeNext(raw: FormDataEntryValue | null): string {
 }
 
 export async function signIn(_prev: FormState, formData: FormData): Promise<FormState> {
-  const username = normalizeUsername(String(formData.get("username") ?? ""));
-  if (!username) return { error: `Usernames are ${USERNAME_RULES}` };
-  await startSession(username);
+  const typed = String(formData.get("username") ?? "").slice(0, 64);
+  const username = normalizeUsername(typed);
+  if (!username) return { error: `Usernames are ${USERNAME_RULES}`, username: typed };
+  const password = String(formData.get("password") ?? "");
+  if (!isAcceptablePassword(password)) return { error: `Passwords need to be ${PASSWORD_RULES.toLowerCase()}`, username };
+  const result = await signInWithPassword(username, password);
+  if (!result.ok) return { error: result.error, username };
   redirect(safeNext(formData.get("next")));
 }
 
