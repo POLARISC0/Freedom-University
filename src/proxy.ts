@@ -19,5 +19,6 @@ export const config = {
     "/walk/journal/:path*",
     "/walk/paths/:path*",
     "/walk/lessons/:path*",
+    "/walk/me/:path*",
   ],
 };
