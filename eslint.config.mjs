@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Vendored third-party agent skills.
     ".claude/**",
+    // Python virtualenv: scrapling[fetchers] bundles Playwright's minified JS.
+    ".venv/**",
   ]),
 ]);
 
