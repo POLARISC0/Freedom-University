@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // The static preview bundle (npm run preview:build).
     "preview-dist/**",
+    // Third-party agent skills (see .claude/skills/SOURCES.md).
+    ".claude/**",
   ]),
 ]);
 
