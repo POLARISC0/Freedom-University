@@ -1,4 +1,5 @@
 // Name tags and the quest arrow are HTML over the canvas, so they stay sharp at any zoom and can be styled with CSS.
+// The renderer projects each character into screen space every frame and hands the positions over.
 
 export interface LabelInput {
   id: string;

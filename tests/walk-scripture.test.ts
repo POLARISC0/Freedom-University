@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import webVerses from "./fixtures/web-verses.json";
 import { collectQuoteChecks, expandRef, normalizeForCompare } from "./walk/quote-checks";
 import { CHARACTERS, DAILY_VERSES, LESSONS, LOCATIONS, PATHS } from "@/walk/content";
+import { ACTIVITIES, allNudges, BADGES, NEED_INFO, relationshipLevels } from "@/walk/life";
 import { findReferences, isValidReference, parseReference } from "@/walk/scripture/references";
+import { buildCapernaum } from "@/walk/world/maps/capernaum";
 
 const WEB = webVerses as Record<string, string>;
 
@@ -28,6 +30,23 @@ function allReferenceStrings(): { where: string; ref: string }[] {
     }
   }
   DAILY_VERSES.forEach((v) => add("daily verses", [v.ref]));
+  for (const info of Object.values(NEED_INFO)) add(`need ${info.id}`, [info.ref]);
+  for (const nudge of allNudges()) add(`need nudge ${nudge.need}`, [nudge.passage.ref]);
+  for (const a of ACTIVITIES) add(`activity ${a.id}`, [a.passage.ref]);
+  for (const b of BADGES) add(`badge ${b.id}`, [b.ref]);
+  return out;
+}
+
+/** Prose in the life systems and the world's daily routines that cites Scripture inline. */
+function lifeAndWorldProse(): { where: string; text: string }[] {
+  const out: { where: string; text: string }[] = [];
+  for (const info of Object.values(NEED_INFO)) out.push({ where: `need ${info.id}`, text: info.summary });
+  for (const id of ["jesus", "peter"]) {
+    for (const level of relationshipLevels(id)) out.push({ where: `friendship ${id} ${level.label}`, text: level.description });
+  }
+  for (const npc of buildCapernaum().npcs) {
+    for (const entry of npc.schedule ?? []) if (entry.doing) out.push({ where: `routine ${npc.id}`, text: entry.doing });
+  }
   return out;
 }
 
@@ -48,6 +67,18 @@ describe("Scripture references in content", () => {
     ];
     const invalid = prose.flatMap((text) => findReferences(text).filter((f) => !f.valid).map((f) => f.raw));
     expect(invalid).toEqual([]);
+  });
+
+  it("cites a valid reference wherever the life systems and daily routines point to Scripture", () => {
+    const prose = lifeAndWorldProse();
+    const invalid = prose.flatMap(({ where, text }) => findReferences(text).filter((f) => !f.valid).map((f) => `${where}: ${f.raw}`));
+    expect(invalid).toEqual([]);
+    // Every need, every step of friendship with Jesus, and every part of the mentors' days names its passage.
+    const uncited = prose
+      .filter(({ where }) => /^(need |friendship jesus |routine (jesus|peter|matthew)$)/.test(where))
+      .filter(({ text }) => findReferences(text).length === 0)
+      .map(({ where, text }) => `${where}: ${text}`);
+    expect(uncited).toEqual([]);
   });
 });
 

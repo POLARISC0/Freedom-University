@@ -32,6 +32,13 @@ export class WorldClock {
     return this.day * DAY_MINUTES + this.minutes;
   }
 
+  /** Move forward to `total` game minutes since the walk began, exactly. Time never runs backwards. */
+  setTotal(total: number) {
+    if (!(total > this.total)) return;
+    this.day = Math.floor(total / DAY_MINUTES);
+    this.minutes = total - this.day * DAY_MINUTES;
+  }
+
   get hour(): number {
     return this.minutes / 60;
   }

@@ -44,11 +44,22 @@ export interface ActivityDef {
   needs: Partial<Needs>;
   /** Game hours when it can be done, as [from, to) ranges that may wrap midnight. Omitted: any time. */
   hours?: [number, number][];
+  /** Why it can't be done outside those hours, e.g. "The synagogue opens again at sunrise." */
+  closedNote?: string;
   /** Weather it can't be done in. */
   notIn?: WeatherKind[];
+  /** Only while this character is there, settled within reach of the spot (Jesus, for listening to Him teach). */
+  withCharacter?: string;
   /** Friendship each character within reach gains when the player does this alongside them. */
   friendship?: number;
   /** Shown when it's done: Scripture behind the activity (exact World English Bible wording, test-checked). */
+  passage: Passage;
+}
+
+/** A kind word when a need has run low: what to do about it, and a verse to carry. */
+export interface NeedNudge {
+  need: Need;
+  text: string;
   passage: Passage;
 }
 
@@ -77,10 +88,21 @@ export interface LifeState {
   counters: Record<string, number>;
   /** Badge id -> ISO time it was earned. */
   badges: Record<string, string>;
+  /** Friendship already gained on the current game day, so greetings and chat only count so much per day. */
+  today: DailyFriendship;
   /** Game time the needs were last brought up to date: total game minutes since the walk began. */
   clock: number;
   /** ISO time the character was created. */
   createdAt: string;
+}
+
+export interface DailyFriendship {
+  /** The game day (WorldClock.day) these belong to. */
+  day: number;
+  /** Characters already greeted today. */
+  greeted: string[];
+  /** characterId -> chat messages sent today. */
+  messages: Record<string, number>;
 }
 
 export interface BadgeContext {

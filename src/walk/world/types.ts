@@ -100,6 +100,8 @@ export interface ScheduleEntry {
   pose?: Pose;
   /** Shown when the player looks at them, e.g. "Praying alone before dawn (Mark 1:35)". */
   doing?: string;
+  /** Head indoors while it rains hard (townsfolk out in the square; fishermen keep working). */
+  shelterFromRain?: boolean;
 }
 
 /** A place where the player can do something that feeds a spiritual need (pray, read, rest, help...). */
@@ -111,6 +113,8 @@ export interface ActivitySpot {
   y: number;
   /** How close the player must be, in tiles. */
   radius: number;
+  /** Which way the player faces while doing it (towards the rock, the table, the well). */
+  face?: Facing;
 }
 
 export type WeatherKind = "clear" | "cloudy" | "mist" | "rain" | "windy";

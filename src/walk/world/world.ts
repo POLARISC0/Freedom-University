@@ -1,15 +1,33 @@
+import { getCharacter } from "@/walk/content";
+import { activityMinutes, getActivity, unavailableReason } from "@/walk/life/activities";
+import type { ActivityDef } from "@/walk/life/types";
 import { WorldClock } from "./clock";
 import { Emitter } from "./events";
 import { collides, moveWithCollision, WalkGrid } from "./grid";
 import { rng } from "./noise";
 import { findPath } from "./pathfind";
 import type { StoryState } from "./story";
-import type { Facing, NpcDef, Pose, ScheduleEntry, Vec, Weather, WorldMap } from "./types";
+import type { ActivitySpot, Facing, NpcDef, Pose, ScheduleEntry, Vec, Weather, WeatherKind, WorldMap } from "./types";
 import { weatherAt } from "./weather";
 
 export const PLAYER_SPEED = 4.2; // tiles per second
 export const INTERACT_RADIUS = 1.7;
 export const ARRIVE_RADIUS = 1.8;
+/** Characters within this many tiles share an activity with the player. */
+export const COMPANY_RADIUS = 3.5;
+/** Rain this heavy sends townsfolk out in the square indoors. */
+export const HEAVY_RAIN = 0.5;
+
+/** How close a character an activity needs (ActivityDef.withCharacter) must be to its spot. */
+const WITH_CHARACTER_RADIUS = 4;
+/** After an activity this long (sleeping), everyone is settled where the new hour finds them. */
+const SETTLE_AFTER_MINUTES = 120;
+/** Walking up to someone on the move: re-route when they are this far from where the route was heading... */
+const REPATH_DISTANCE = 1.2;
+/** ...at most this often (seconds)... */
+const REPATH_SECONDS = 0.4;
+/** ...and give up after this many routes. */
+const MAX_APPROACH_ROUTES = 40;
 
 export interface Walker {
   pos: Vec;
@@ -42,20 +60,48 @@ export interface NpcState extends Walker {
   idle: number;
   face: Facing | null;
   speed: number;
+  /** What they're doing now, for the player to read, e.g. "Teaching the crowds by the sea (Mark 4:1)". */
+  doing: string | null;
 }
 
 export interface Interactable {
+  /** A character's NPC id, "signpost", or an activity spot id. */
   id: string;
-  kind: "character" | "signpost";
+  kind: "character" | "signpost" | "activity";
+  /** The button text, e.g. "Peter" or "Pray here". */
   label: string;
+  /** Activities only: the activity id (see `getActivity`). */
+  activity?: string;
+  /** Activities only: why it can't be done right now, when the player walked up to one that isn't available. */
+  reason?: string;
+}
+
+/** Payload of the activity events. */
+export interface ActivityEvent {
+  /** Activity id. */
+  activity: string;
+  /** Activity spot id. */
+  spotId: string;
+  /** Character ids of everyone within COMPANY_RADIUS: when it started, and (for "activityDone") when it ended. */
+  nearby: string[];
 }
 
 export interface WorldEvents extends Record<string, unknown> {
+  /** What the player could interact with right now changed (null: nothing in reach). */
   nearby: Interactable | null;
+  /** The player chose to interact. For kind "activity" call `startActivity(item.id)`, or show `item.reason`. */
   interact: Interactable;
   region: string;
   arrive: string;
   clock: number;
+  /** The player began an activity; input stays off until it ends. */
+  activityStart: ActivityEvent;
+  /** An activity finished and the clock has moved on: apply it to the player's life (`applyActivity`). */
+  activityDone: ActivityEvent;
+  /** An activity was stopped part-way (`cancelActivity`): nothing is gained. */
+  activityCancel: ActivityEvent;
+  /** The kind of weather changed. */
+  weather: Weather;
 }
 
 export interface SavedState {
@@ -76,9 +122,25 @@ function scheduleAt(schedule: ScheduleEntry[], hour: number): ScheduleEntry | nu
   return schedule.find((e) => (e.from <= e.to ? hour >= e.from && hour < e.to : hour >= e.from || hour < e.to)) ?? null;
 }
 
+/** "The well" -> "the well", for use mid-sentence. */
+function midSentence(label: string): string {
+  return label.replace(/^(The|A) /, (m) => m.toLowerCase());
+}
+
+/** Where an NPC wants to be right now, and what they do there. */
+interface Plan {
+  spot: string | null;
+  wander: number;
+  face: Facing | null;
+  /** A mentor the story has sent somewhere: they stand beside the spot and walk faster. */
+  offsetForMentor: boolean;
+  pose: Pose;
+  doing: string | null;
+}
+
 /**
- * The simulation: player, people, animals and time of day. Renderers read `player`, `npcs` and `clock` every
- * frame; the UI listens to `events` and calls the control methods.
+ * The simulation: player, people, animals, time of day and weather. Renderers read `player`, `npcs`, `clock` and
+ * `weather` every frame; the UI listens to `events` and calls the control methods.
  */
 export class World {
   readonly map: WorldMap;
@@ -91,6 +153,10 @@ export class World {
   private input: Vec = { x: 0, y: 0 };
   private inputEnabled = true;
   private pendingInteract: string | null = null;
+  /** Where the route to `pendingInteract` was heading, and how often it has been re-planned. */
+  private approachGoal: Vec = { x: 0, y: 0 };
+  private approachRoutes = 0;
+  private approachTimer = 0;
   private story: StoryState = { mentorSpots: {}, quest: null, mentorsWithLessons: [] };
   private talkingTo: string | null = null;
   private nearby: Interactable | null = null;
@@ -98,11 +164,17 @@ export class World {
   private arrivedAt: string | null = null;
   private clockAccumulator = 0;
   private random = rng(2026);
+  /** The running activity's game time: it runs from `start` to `end` (clock totals) while it plays out. */
+  private activityClock: { start: number; end: number; company: string[] } | null = null;
+  private weatherNow: Weather;
+  private weatherKind: WeatherKind;
 
   constructor(map: WorldMap, saved?: Partial<SavedState>) {
     this.map = map;
     this.grid = new WalkGrid(map);
     this.clock = new WorldClock(saved?.minutes ?? 7 * 60, typeof saved?.day === "number" ? saved.day : 0);
+    this.weatherNow = weatherAt(this.clock.day, this.clock.minutes);
+    this.weatherKind = this.weatherNow.kind;
     const start = saved && typeof saved.x === "number" && typeof saved.y === "number" ? { x: saved.x, y: saved.y } : map.spawn;
     const pos = collides(this.grid, start.x, start.y) ? this.walkableNear(map.spawn) : start;
     this.player = { pos, facing: saved?.facing ?? "down", moving: false, pose: "stand", path: [], activity: null };
@@ -114,7 +186,7 @@ export class World {
   /** Keyboard or joystick direction, each axis -1..1. Cancels any tap-to-move path. */
   setInput(x: number, y: number) {
     this.input = { x, y };
-    if (x !== 0 || y !== 0) {
+    if ((x !== 0 || y !== 0) && this.canMove()) {
       this.player.path = [];
       this.pendingInteract = null;
     }
@@ -127,31 +199,34 @@ export class World {
       this.input = { x: 0, y: 0 };
       this.player.path = [];
       this.player.moving = false;
+      this.pendingInteract = null;
     }
   }
 
   /** Tap-to-move: walk to a tile (or as close as possible). */
   walkTo(target: Vec) {
-    if (!this.inputEnabled) return;
+    if (!this.canMove()) return;
     this.pendingInteract = null;
     const goal = this.grid.nearestWalkable(target.x - 0.5, target.y - 0.5, 6);
     if (!goal) return;
     this.player.path = findPath(this.grid, this.player.pos, goal) ?? [];
   }
 
-  /** Walk up to a character (or the signpost) and talk to them on arrival. */
+  /**
+   * Walk up to a character, the signpost or an activity spot, and interact on arrival. Someone on the move is
+   * followed: the route is re-planned as they go, so the player can catch up with Jesus walking along the shore.
+   */
   approach(id: string) {
-    if (!this.inputEnabled) return;
+    if (!this.canMove()) return;
     const target = this.interactablePosition(id);
     if (!target) return;
-    if (this.distance(this.player.pos, target) <= INTERACT_RADIUS) {
+    if (this.distance(this.player.pos, target) <= this.reachOf(id)) {
       this.interact(id);
       return;
     }
-    const goal = this.grid.nearestWalkable(target.x - 0.5, target.y + 0.5, 4);
-    if (!goal) return;
-    this.player.path = findPath(this.grid, this.player.pos, goal) ?? [];
-    this.pendingInteract = id;
+    this.approachRoutes = 0;
+    this.approachTimer = REPATH_SECONDS;
+    if (this.routeTo(id, target)) this.pendingInteract = id;
   }
 
   /** Walk to a named spot, e.g. a mentor's place when the player picks "take me there". */
@@ -160,9 +235,49 @@ export class World {
     if (spot) this.walkTo(spot);
   }
 
-  /** Talk to whatever is nearby. */
+  /** Talk to (or use) whatever is nearby. */
   interactNearby() {
-    if (this.inputEnabled && this.nearby) this.interact(this.nearby.id);
+    if (this.canMove() && this.nearby) this.interact(this.nearby.id);
+  }
+
+  /**
+   * Begin the activity at an activity spot. The player must be within the spot's radius and the activity available
+   * now (see `activityReason`). The player stops, takes their place at the spot facing it, and holds the activity's
+   * pose with input off; game time runs faster until the activity's minutes have passed (or, for sleep, until
+   * morning), then "activityDone" fires. Returns false, changing nothing, if it can't start.
+   */
+  startActivity(spotId: string): boolean {
+    if (this.player.activity) return false;
+    const spot = this.activitySpot(spotId);
+    const def = spot ? getActivity(spot.activity) : undefined;
+    if (!spot || !def) return false;
+    if (this.distance(this.player.pos, spot) > spot.radius + 0.25 || this.reasonFor(spot, def) !== null) return false;
+
+    const p = this.player;
+    this.input = { x: 0, y: 0 };
+    this.pendingInteract = null;
+    p.path = [];
+    p.moving = false;
+    p.facing = spot.face ?? facingFor(spot.x - p.pos.x, spot.y - p.pos.y, p.facing);
+    if (!collides(this.grid, spot.x, spot.y)) p.pos = { x: spot.x, y: spot.y };
+    p.pose = def.pose;
+    p.activity = { id: def.id, spotId: spot.id, pose: def.pose, elapsed: 0, duration: def.seconds };
+
+    const start = this.clock.total;
+    const company = this.nearbyCharacters();
+    this.activityClock = { start, end: start + activityMinutes(def, this.clock.minutes), company };
+    this.setNearby(null);
+    this.events.emit("activityStart", { activity: def.id, spotId: spot.id, nearby: company });
+    return true;
+  }
+
+  /** Stop the running activity part-way. The time already spent has passed; nothing is gained. */
+  cancelActivity() {
+    const run = this.player.activity;
+    if (!run) return;
+    const company = this.activityClock?.company ?? [];
+    this.endActivity();
+    this.events.emit("activityCancel", { activity: run.id, spotId: run.spotId, nearby: company });
   }
 
   setStory(story: StoryState) {
@@ -190,15 +305,7 @@ export class World {
     if (!plan.spot) return;
     const target = this.standPoint(plan.spot, plan.offsetForMentor);
     if (this.distance(npc.pos, target) <= 5) return;
-    Object.assign(npc, {
-      pos: { ...target },
-      anchor: target,
-      path: [],
-      visible: true,
-      goal: plan.spot,
-      wanderRadius: plan.wander,
-      face: plan.face,
-    });
+    this.place(npc, plan);
   }
 
   /** The character the player is talking to stops and faces them. */
@@ -243,23 +350,101 @@ export class World {
     return best;
   }
 
+  /** The activity spot at a world point (in tiles), for tap-to-do: pass its id to `approach`. */
+  activitySpotAt(point: Vec, radius = 1): ActivitySpot | undefined {
+    let best: ActivitySpot | undefined;
+    let bestD = radius;
+    for (const spot of this.map.activitySpots) {
+      const d = this.distance(point, spot);
+      if (d < bestD) {
+        bestD = d;
+        best = spot;
+      }
+    }
+    return best;
+  }
+
+  /**
+   * Why the activity at a spot can't be done right now (the hour, the weather, or the person it needs isn't
+   * there), in a sentence for the player; null when it can. Being close enough is checked by `startActivity`.
+   */
+  activityReason(spotId: string): string | null {
+    const spot = this.activitySpot(spotId);
+    const def = spot ? getActivity(spot.activity) : undefined;
+    return spot && def ? this.reasonFor(spot, def) : "There's nothing to do here.";
+  }
+
+  /** Character ids of everyone within `radius` tiles of the player, nearest first (named townsfolk included). */
+  nearbyCharacters(radius = COMPANY_RADIUS): string[] {
+    const p = this.player.pos;
+    return this.npcs
+      .filter((n) => n.visible && n.def.characterId && this.distance(p, n.pos) <= radius)
+      .sort((a, b) => this.distance(p, a.pos) - this.distance(p, b.pos))
+      .map((n) => n.def.characterId!);
+  }
+
   // ---- Simulation ----------------------------------------------------------------------------------------------
 
   update(dt: number) {
     dt = Math.min(dt, 0.1);
-    this.clock.tick(dt);
+    const run = this.player.activity;
+    if (run && this.activityClock) {
+      // While the player is busy, time runs faster so the activity's game minutes pass in its few real seconds.
+      run.elapsed = Math.min(run.duration, run.elapsed + dt);
+      const { start, end } = this.activityClock;
+      this.clock.setTotal(start + (end - start) * (run.duration > 0 ? run.elapsed / run.duration : 1));
+    } else {
+      this.clock.tick(dt);
+    }
     this.clockAccumulator += dt;
     if (this.clockAccumulator > 0.5) {
       this.clockAccumulator = 0;
       this.events.emit("clock", this.clock.minutes);
     }
+    this.updateWeather();
     this.updatePlayer(dt);
     for (const npc of this.npcs) this.updateNpc(npc, dt);
-    this.checkSurroundings();
+    if (run && run.elapsed >= run.duration) this.finishActivity();
+    this.checkSurroundings(dt);
+  }
+
+  private canMove(): boolean {
+    return this.inputEnabled && !this.player.activity;
+  }
+
+  private updateWeather() {
+    this.weatherNow = weatherAt(this.clock.day, this.clock.minutes);
+    if (this.weatherNow.kind !== this.weatherKind) {
+      this.weatherKind = this.weatherNow.kind;
+      this.events.emit("weather", this.weatherNow);
+    }
+  }
+
+  private finishActivity() {
+    const run = this.player.activity!;
+    const clock = this.activityClock!;
+    this.clock.setTotal(clock.end);
+    this.endActivity();
+    // After a long sleep, wake to a town already going about its morning.
+    if (clock.end - clock.start >= SETTLE_AFTER_MINUTES) for (const npc of this.npcs) this.place(npc, this.planFor(npc));
+    this.updateWeather();
+    this.events.emit("clock", this.clock.minutes);
+    const nearby = [...new Set([...clock.company, ...this.nearbyCharacters()])];
+    this.events.emit("activityDone", { activity: run.id, spotId: run.spotId, nearby });
+  }
+
+  private endActivity() {
+    this.player.activity = null;
+    this.player.pose = "stand";
+    this.activityClock = null;
   }
 
   private updatePlayer(dt: number) {
     const p = this.player;
+    if (p.activity) {
+      p.moving = false;
+      return;
+    }
     let dx = 0;
     let dy = 0;
     if (this.inputEnabled && (this.input.x !== 0 || this.input.y !== 0)) {
@@ -307,33 +492,65 @@ export class World {
       idle: this.random() * 4,
       face: def.facing ?? null,
       speed: def.speed,
+      doing: null,
     };
     // Start everyone where they should be right now, so the world looks settled on load.
-    const plan = this.planFor(npc);
-    const at = this.standPoint(plan.spot ?? def.home, plan.offsetForMentor);
-    npc.pos = at;
-    npc.anchor = at;
-    npc.goal = plan.spot;
-    npc.visible = plan.spot !== null;
-    npc.wanderRadius = plan.wander;
-    npc.face = plan.face;
-    if (plan.face) npc.facing = plan.face;
+    this.place(npc, this.planFor(npc));
     return npc;
   }
 
+  /** Put an NPC straight where a plan wants them, already arrived (or indoors). */
+  private place(npc: NpcState, plan: Plan) {
+    const at = this.standPoint(plan.spot ?? npc.def.home, plan.offsetForMentor);
+    Object.assign(npc, {
+      pos: at,
+      anchor: at,
+      path: [],
+      moving: false,
+      goal: plan.spot,
+      visible: plan.spot !== null,
+      wanderRadius: plan.wander,
+      face: plan.face,
+      pose: plan.pose,
+    });
+    if (plan.face) npc.facing = plan.face;
+    npc.speed = plan.offsetForMentor ? Math.max(npc.def.speed, PLAYER_SPEED * 1.15) : npc.def.speed;
+    npc.doing = this.doingFor(npc, plan);
+  }
+
   /** Where an NPC wants to be right now. */
-  private planFor(npc: NpcState): { spot: string | null; wander: number; face: Facing | null; offsetForMentor: boolean } {
+  private planFor(npc: NpcState): Plan {
     const def = npc.def;
     const override = def.characterId ? this.story.mentorSpots[def.characterId] : undefined;
-    if (override) return { spot: override, wander: 0, face: null, offsetForMentor: true };
+    if (override) return { spot: override, wander: 0, face: null, offsetForMentor: true, pose: "stand", doing: null };
     // The widow stays by the well while Matthew's quest sends the player to find her.
-    if (def.id === "widow") return { spot: def.home, wander: 0, face: def.facing ?? null, offsetForMentor: false };
+    if (def.id === "widow") {
+      return { spot: def.home, wander: 0, face: def.facing ?? null, offsetForMentor: false, pose: "stand", doing: null };
+    }
     if (def.schedule) {
       const entry = scheduleAt(def.schedule, this.clock.hour);
-      if (!entry || !entry.spot) return { spot: null, wander: 0, face: null, offsetForMentor: false };
-      return { spot: entry.spot, wander: entry.wander, face: entry.face ?? null, offsetForMentor: false };
+      const sheltering = entry?.shelterFromRain && this.weatherNow.rain >= HEAVY_RAIN;
+      if (!entry || !entry.spot || sheltering) {
+        const doing = sheltering ? "Heading indoors out of the rain" : (entry?.doing ?? null);
+        return { spot: null, wander: 0, face: null, offsetForMentor: false, pose: "stand", doing };
+      }
+      return {
+        spot: entry.spot,
+        wander: entry.wander,
+        face: entry.face ?? null,
+        offsetForMentor: false,
+        pose: entry.pose ?? "stand",
+        doing: entry.doing ?? null,
+      };
     }
-    return { spot: def.home, wander: def.wander ?? 0, face: def.facing ?? null, offsetForMentor: false };
+    return { spot: def.home, wander: def.wander ?? 0, face: def.facing ?? null, offsetForMentor: false, pose: "stand", doing: null };
+  }
+
+  /** What an NPC is doing, for the player. A mentor the story has sent somewhere is on the way, then waiting. */
+  private doingFor(npc: NpcState, plan: Plan): string | null {
+    if (!plan.offsetForMentor || !plan.spot) return plan.doing;
+    const place = midSentence(this.map.spots[plan.spot]?.label ?? "the place");
+    return npc.path.length > 0 ? `On the way to ${place}` : `Waiting for you at ${place}`;
   }
 
   /** The tile centre an NPC stands on for a spot. Mentors stand beside it so the player can step onto it. */
@@ -367,11 +584,19 @@ export class World {
       // Mentors who lead the way walk a little faster than the player, so they're there to meet them.
       npc.speed = plan.offsetForMentor ? Math.max(npc.def.speed, PLAYER_SPEED * 1.15) : npc.def.speed;
     }
+    this.moveNpc(npc, plan, dt);
+    npc.doing = this.doingFor(npc, plan);
+  }
 
-    // Someone in conversation with the player pauses and turns to them, but keeps their route for afterwards.
-    if (this.talkingTo === npc.def.id && this.distance(npc.pos, this.player.pos) < 4) {
+  private moveNpc(npc: NpcState, plan: Plan, dt: number) {
+    // Someone in conversation with the player pauses and turns to them, but keeps their route for afterwards; if
+    // the route leads to the player (a mentor coming to meet them), they keep coming. Someone asleep sits up to talk.
+    const toPlayer = this.distance(npc.pos, this.player.pos);
+    const comingToYou = npc.path.length > 0 && this.distance(npc.anchor, this.player.pos) < toPlayer;
+    if (this.talkingTo === npc.def.id && toPlayer < 4 && !comingToYou) {
       npc.moving = false;
       npc.facing = facingFor(this.player.pos.x - npc.pos.x, this.player.pos.y - npc.pos.y, npc.facing);
+      if (npc.pose === "sleep") npc.pose = "sit";
       return;
     }
 
@@ -383,6 +608,7 @@ export class World {
       const step = npc.speed * dt;
       npc.facing = facingFor(tx, ty, npc.facing);
       npc.moving = true;
+      npc.pose = "stand";
       if (dist <= step) {
         npc.pos = { x: target.x, y: target.y };
         npc.path.shift();
@@ -395,8 +621,12 @@ export class World {
     npc.moving = false;
     if (npc.goal === null) {
       npc.visible = false;
+      npc.pose = "stand";
       return;
     }
+    // Arrived: take up what they came to do (kneel, sit, work...). Wanderers do it between strolls.
+    const settled = npc.wanderRadius > 0 || this.distance(npc.pos, npc.anchor) <= 0.6;
+    npc.pose = settled ? plan.pose : "stand";
     // Lost the way (no route was found earlier, say): try again to reach the spot.
     if (npc.wanderRadius === 0 && this.distance(npc.pos, npc.anchor) > 1) {
       npc.idle -= dt;
@@ -426,10 +656,42 @@ export class World {
     }
   }
 
+  private activitySpot(id: string): ActivitySpot | undefined {
+    return this.map.activitySpots.find((s) => s.id === id);
+  }
+
+  private reasonFor(spot: ActivitySpot, def: ActivityDef): string | null {
+    const reason = unavailableReason(def, this.clock.minutes, this.weather);
+    if (reason || !def.withCharacter) return reason;
+    const npc = this.npcs.find((n) => n.def.characterId === def.withCharacter);
+    const there =
+      npc?.visible && !npc.moving && npc.path.length === 0 && this.distance(npc.pos, spot) <= WITH_CHARACTER_RADIUS;
+    return there ? null : `${getCharacter(def.withCharacter)?.shortName ?? "They"} isn't here just now.`;
+  }
+
   private interactablePosition(id: string): Vec | null {
     if (id === "signpost") return this.map.spots.signpost ?? null;
+    const spot = this.activitySpot(id);
+    if (spot) return spot;
     const npc = this.npc(id);
     return npc?.visible ? npc.pos : null;
+  }
+
+  /** How close the player must be to interact with something. */
+  private reachOf(id: string): number {
+    return this.activitySpot(id)?.radius ?? INTERACT_RADIUS;
+  }
+
+  /** Plan a route to stand by `target` (a character's feet: just below them; an activity spot: on it). */
+  private routeTo(id: string, target: Vec): boolean {
+    const onSpot = Boolean(this.activitySpot(id));
+    const goal = this.grid.nearestWalkable(target.x - 0.5, target.y + (onSpot ? -0.5 : 0.5), 4);
+    const path = goal ? findPath(this.grid, this.player.pos, goal) : null;
+    this.approachRoutes++;
+    if (!path) return false;
+    this.player.path = path;
+    this.approachGoal = { x: target.x, y: target.y };
+    return true;
   }
 
   private interact(id: string) {
@@ -439,15 +701,28 @@ export class World {
 
   private describe(id: string): Interactable | null {
     if (id === "signpost") return { id, kind: "signpost", label: "Read the signpost" };
+    const spot = this.activitySpot(id);
+    if (spot) {
+      const def = getActivity(spot.activity);
+      if (!def) return null;
+      const reason = this.reasonFor(spot, def);
+      return { id, kind: "activity", label: def.action, activity: def.id, ...(reason ? { reason } : {}) };
+    }
     const npc = this.npc(id);
     if (!npc?.def.characterId) return null;
     return { id, kind: "character", label: npc.def.name ?? "Talk" };
   }
 
-  private checkSurroundings() {
-    const p = this.player.pos;
+  private setNearby(item: Interactable | null) {
+    if (item?.id === this.nearby?.id) return;
+    this.nearby = item;
+    this.events.emit("nearby", item);
+  }
 
-    // Nearest character or sign within reach.
+  /** The nearest thing within reach: a character, the signpost, or an activity that can be done now. */
+  private nearestInteractable(): Interactable | null {
+    if (this.player.activity) return null;
+    const p = this.player.pos;
     let best: Interactable | null = null;
     let bestD = INTERACT_RADIUS;
     for (const n of this.npcs) {
@@ -459,18 +734,55 @@ export class World {
       }
     }
     const sign = this.map.spots.signpost;
-    if (sign && this.distance(p, sign) < bestD) best = this.describe("signpost");
-    if (best?.id !== this.nearby?.id) {
-      this.nearby = best;
-      this.events.emit("nearby", best);
+    if (sign && this.distance(p, sign) < bestD) {
+      bestD = this.distance(p, sign);
+      best = this.describe("signpost");
     }
+    // Activities reach a little further than people, but someone closer still wins.
+    for (const spot of this.map.activitySpots) {
+      const d = this.distance(p, spot);
+      if (d > spot.radius || (best && d >= bestD)) continue;
+      const def = getActivity(spot.activity);
+      if (!def || this.reasonFor(spot, def) !== null) continue;
+      bestD = d;
+      best = { id: spot.id, kind: "activity", label: def.action, activity: def.id };
+    }
+    return best;
+  }
 
-    if (this.pendingInteract && this.player.path.length === 0) {
-      const target = this.interactablePosition(this.pendingInteract);
-      const id = this.pendingInteract;
+  /** Keep walking up to whoever `approach` is heading for; talk once in reach. */
+  private followApproach(dt: number) {
+    const id = this.pendingInteract!;
+    const p = this.player;
+    const target = this.interactablePosition(id);
+    if (!target) {
+      // They went indoors: stop where we are.
       this.pendingInteract = null;
-      if (target && this.distance(p, target) <= INTERACT_RADIUS + 0.6) this.interact(id);
+      return;
     }
+    const d = this.distance(p.pos, target);
+    const onTheMove = this.npc(id)?.moving ?? false;
+    if ((p.path.length === 0 && d <= this.reachOf(id) + 0.6) || (onTheMove && d <= INTERACT_RADIUS)) {
+      this.pendingInteract = null;
+      p.path = [];
+      p.moving = false;
+      this.interact(id);
+      return;
+    }
+    // They've moved on since the route was planned, or it ended short of them: head for where they are now.
+    this.approachTimer -= dt;
+    const drifted = this.distance(target, this.approachGoal) > REPATH_DISTANCE && this.approachTimer <= 0;
+    if (p.path.length === 0 || drifted) {
+      this.approachTimer = REPATH_SECONDS;
+      if (this.approachRoutes >= MAX_APPROACH_ROUTES || !this.routeTo(id, target)) this.pendingInteract = null;
+    }
+  }
+
+  private checkSurroundings(dt: number) {
+    const p = this.player.pos;
+    this.setNearby(this.nearestInteractable());
+
+    if (this.pendingInteract && this.canMove()) this.followApproach(dt);
 
     const region = this.regionAt(p);
     if (region !== this.region) {

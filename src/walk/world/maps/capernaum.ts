@@ -1,7 +1,7 @@
 import { CHARACTERS, TOWNSFOLK, type Appearance } from "@/walk/content";
 import { WalkGrid } from "../grid";
 import { fbm, rng } from "../noise";
-import { Tile, type NpcDef, type Region, type ScheduleEntry, type Spot, type WorldMap, type WorldObject } from "../types";
+import { Tile, type ActivitySpot, type NpcDef, type Region, type ScheduleEntry, type Spot, type WorldMap, type WorldObject } from "../types";
 
 // Capernaum on the north shore of the Sea of Galilee: the town Jesus made His home (Matthew 4:13). North is up;
 // the lake fills the south. Hills rise to the north-west, the Via Maris trade road runs east-west above the town,
@@ -101,26 +101,29 @@ export function buildCapernaum(): WorldMap {
     return obj;
   };
 
-  // Houses of black basalt with flat roofs. Each door gets a spot so townsfolk can go home at night.
-  const houses: [number, number, number, number][] = [
-    [47, 15, 4, 3],
-    [52, 15, 4, 3],
-    [57, 16, 5, 3],
-    [33, 20, 4, 3],
-    [38, 22, 4, 3],
-    [57, 21, 4, 3],
-    [57, 26, 4, 3],
-    [33, 26, 4, 3],
-    [38, 28, 4, 3],
-    [51, 30, 4, 3],
-    [56, 31, 4, 3],
-    [61, 30, 4, 3],
-    [27, 22, 4, 3],
-    [62, 24, 3, 3],
+  // Houses of black basalt with flat roofs. Each door gets a spot so people can go home at night. A few houses
+  // belong to people the player knows: Simon Peter's, right beside the synagogue (Mark 1:29), Matthew's at the
+  // edge of town, and the player's own. The rest are townsfolk homes, with door spots door-0, door-1...
+  const houses: { x: number; y: number; w: number; h: number; id?: string; label?: string }[] = [
+    { x: 47, y: 15, w: 4, h: 3 },
+    { x: 52, y: 15, w: 4, h: 3 },
+    { x: 57, y: 16, w: 5, h: 3 },
+    { x: 32, y: 15, w: 4, h: 3, id: "peter-house", label: "Peter's house" },
+    { x: 38, y: 22, w: 4, h: 3 },
+    { x: 57, y: 21, w: 4, h: 3 },
+    { x: 57, y: 26, w: 4, h: 3 },
+    { x: 33, y: 26, w: 4, h: 3 },
+    { x: 38, y: 28, w: 4, h: 3, id: "player-house", label: "Your house" },
+    { x: 51, y: 30, w: 4, h: 3 },
+    { x: 56, y: 31, w: 4, h: 3 },
+    { x: 61, y: 30, w: 4, h: 3, id: "fisher-house", label: "A fisherman's house" },
+    { x: 27, y: 22, w: 4, h: 3, id: "matthew-house", label: "Matthew's house" },
+    { x: 62, y: 24, w: 3, h: 3 },
   ];
-  houses.forEach(([x, y, w, h], i) => {
+  const townDoors: string[] = [];
+  houses.forEach(({ x, y, w, h, id, label }, i) => {
     add({
-      id: `house-${i}`,
+      id: id ?? `house-${townDoors.length}`,
       kind: "house",
       x,
       y,
@@ -128,13 +131,30 @@ export function buildCapernaum(): WorldMap {
       h,
       solid: true,
       variant: i % 4,
-      light: i % 3 === 2 ? undefined : { x: x + w / 2, y: y + h - 0.2, radius: 2.4, color: 0xffb45a },
+      light: !id && i % 3 === 2 ? undefined : { x: x + w / 2, y: y + h - 0.2, radius: 2.4, color: 0xffb45a },
     });
-    spot(`door-${i}`, x + Math.floor(w / 2) + 0.5, y + h + 0.5, "A house");
+    const door = id ?? `door-${townDoors.length}`;
+    if (!id) townDoors.push(door);
+    spot(door, x + Math.floor(w / 2) + 0.5, y + h + 0.5, label ?? "A house");
   });
 
   add({ id: "synagogue", kind: "synagogue", x: 36, y: 15, w: 7, h: 5, solid: true, light: { x: 39.5, y: 19.8, radius: 3, color: 0xffc070 } });
   spot("synagogue", 39.5, 20.5, "The synagogue");
+
+  // Peter's courtyard, between his door and the synagogue: a low table for the evening meal, with a place for each
+  // of the friends who share it, and a cooking fire. Jesus and Peter sleep out here on warm nights.
+  add({ id: "peter-table", kind: "table", x: 33, y: 20, w: 3, h: 1, solid: true });
+  add({ id: "peter-cookfire", kind: "cookfire", x: 32, y: 18, w: 1, h: 1, solid: true, light: { x: 32.5, y: 18.5, radius: 2.6, color: 0xff8a3a } });
+  spot("meal-andrew", 33.5, 19.5, "Peter's table");
+  spot("meal-jesus", 34.5, 19.5, "Peter's table");
+  spot("meal-matthew", 35.5, 19.5, "Peter's table");
+  spot("meal-peter", 32.5, 20.5, "Peter's table");
+  spot("meal-james", 33.5, 21.5, "Peter's table");
+  spot("meal-john", 35.5, 21.5, "Peter's table");
+  spot("peter-rest", 33.5, 22.5, "Peter's courtyard");
+  spot("jesus-rest", 35.5, 22.5, "Peter's courtyard");
+  // Kept free of scattered trees and bushes.
+  const reserved: [number, number, number, number][] = [[31, 17, 8, 7]];
 
   // Market stalls around the well.
   const stalls: [number, number][] = [
@@ -152,6 +172,7 @@ export function buildCapernaum(): WorldMap {
   add({ id: "well", kind: "well", x: 49, y: 24, w: 2, h: 1, solid: true });
   spot("well", 49.5, 25.6, "The well");
   spot("plaza", 49, 27.5, "The market");
+  spot("matthew-market", 46.5, 25.5, "The market");
   add({ kind: "jars", x: 46, y: 27, w: 1, h: 1, solid: true });
   add({ kind: "baskets", x: 55, y: 24, w: 1, h: 1, solid: true });
 
@@ -167,6 +188,10 @@ export function buildCapernaum(): WorldMap {
     const cx = 35 + i * 1.4;
     spot(`crowd-${i}`, cx, sandTop(Math.floor(cx)) + 2.3 + (i % 2) * 0.6, "Listening to Jesus");
   }
+  // The disciples sit closest, at His feet; the player's place is in the middle, just behind them.
+  ["james", "andrew", "peter", "", "matthew", "john"].forEach((who, i) => {
+    if (who) spot(`listen-${who}`, 35.5 + i, sandTop(38) + 1.5, "Listening to Jesus");
+  });
 
   const peterBoatX = 53;
   const peterBoatY = waterTop(54) - 1;
@@ -174,6 +199,7 @@ export function buildCapernaum(): WorldMap {
   spot("peter-home", peterBoatX - 0.6, peterBoatY + 0.5, "Peter's boat");
   add({ kind: "nets", x: 57, y: sandTop(57), w: 2, h: 1, solid: true });
   spot("andrew-home", 59.6, sandTop(59) + 0.6, "Mending nets");
+  spot("peter-nets", 56.5, sandTop(57) + 0.5, "Mending nets");
   const zebedeeX = 62;
   add({ id: "zebedee-boat", kind: "boat", x: zebedeeX, y: waterTop(63) - 1, w: 3, h: 1, solid: true, variant: 1, flip: true });
   spot("james-zebedee-home", zebedeeX - 0.6, waterTop(63) - 0.5, "Zebedee's boat");
@@ -196,6 +222,7 @@ export function buildCapernaum(): WorldMap {
   // The quiet place on the hillside.
   add({ id: "prayer-rock", kind: "prayerRock", x: 11, y: 6, w: 2, h: 1, solid: true });
   spot("prayer-rock", 12, 7.6, "A quiet place on the hillside");
+  spot("jesus-prayer", 10.5, 6.5, "A quiet place on the hillside");
 
   // A signpost to the places that open in later chapters.
   add({ id: "signpost", kind: "signpost", x: 3, y: roadRow(3) - 1, w: 1, h: 1, solid: true });
@@ -206,7 +233,8 @@ export function buildCapernaum(): WorldMap {
   spot("bartholomew-home", 21.5, 25.8, "Under the fig tree");
   const r = rng(1234);
   const free = (x: number, y: number, w = 1, h = 1) =>
-    objects.every((o) => x + w <= o.x - 1 || x >= o.x + o.w + 1 || y + h <= o.y - 1 || y >= o.y + o.h + 1);
+    objects.every((o) => x + w <= o.x - 1 || x >= o.x + o.w + 1 || y + h <= o.y - 1 || y >= o.y + o.h + 1) &&
+    reserved.every(([rx, ry, rw, rh]) => x + w <= rx || x >= rx + rw || y + h <= ry || y >= ry + rh);
   const scatter = (kind: WorldObject["kind"], count: number, area: [number, number, number, number], allowed: Tile[], solid: boolean) => {
     for (let n = 0, tries = 0; n < count && tries < count * 40; tries++) {
       const x = Math.floor(area[0] + r() * area[2]);
@@ -241,6 +269,9 @@ export function buildCapernaum(): WorldMap {
 
   // Regions name where the player is; the first match wins.
   const regions: Region[] = [
+    { name: "Peter's house", x: 32, y: 15, w: 5, h: 8 },
+    { name: "Your house", x: 37, y: 27, w: 6, h: 7 },
+    { name: "Matthew's house", x: 26, y: 21, w: 5, h: 6 },
     { name: "The market", x: 43, y: 21, w: 13, h: 8 },
     { name: "The synagogue", x: 35, y: 15, w: 9, h: 7 },
     { name: "Matthew's tax booth", x: boothX - 2, y: boothY - 1, w: 6, h: 4 },
@@ -257,7 +288,8 @@ export function buildCapernaum(): WorldMap {
     { name: "The Sea of Galilee", x: 0, y: 0, w: W, h: H },
   ];
 
-  // Mentors and disciples, each in the place Scripture suggests.
+  // Mentors and disciples, each in the place Scripture suggests. Those with a daily routine (ROUTINES) follow it;
+  // the others stay near their place all day.
   const characterHomes: Record<string, { spot: string; wander?: number }> = {
     jesus: { spot: "jesus-home" },
     peter: { spot: "peter-home" },
@@ -283,7 +315,8 @@ export function buildCapernaum(): WorldMap {
     name: c.shortName,
     role: c.conversational ? "mentor" : "disciple",
     appearance: c.appearance,
-    home: characterHomes[c.id]?.spot ?? "plaza",
+    home: ROUTINES[c.id]?.home ?? characterHomes[c.id]?.spot ?? "plaza",
+    schedule: ROUTINES[c.id]?.schedule,
     wander: characterHomes[c.id]?.wander ?? 0,
     speed: 2.4,
     facing: "down",
@@ -301,7 +334,7 @@ export function buildCapernaum(): WorldMap {
   });
   spot("widow-home", 51.6, 24.6, "The well");
 
-  npcs.push(...townsfolk(houses.length));
+  npcs.push(...townsfolk(townDoors));
 
   // Sheep on the hillside.
   spot("pasture", 17, 15, "Pasture");
@@ -323,6 +356,19 @@ export function buildCapernaum(): WorldMap {
   spot("shore-east", 66, sandTop(66) + 1.5, "The shore");
   spot("boats", 56, waterTop(56) - 1.6, "The boats");
 
+  // Places to pray, read, listen, eat, help and rest (activities in @/walk/life/activities). Each is where the
+  // player kneels, sits or works, facing the thing itself.
+  const activitySpots: ActivitySpot[] = [
+    { id: "pray-spot", activity: "pray", x: 11.5, y: 7.5, radius: 2, face: "up" },
+    { id: "read-spot", activity: "read", x: 38.5, y: 20.5, radius: 1.8, face: "up" },
+    { id: "listen-spot", activity: "listen", x: 38.5, y: sandTop(38) + 2.5, radius: 2, face: "up" },
+    { id: "meal-spot", activity: "meal", x: 34.5, y: 21.5, radius: 2, face: "up" },
+    { id: "nets-spot", activity: "nets", x: 57.5, y: sandTop(57) + 1.5, radius: 2, face: "up" },
+    { id: "water-spot", activity: "water", x: 48.5, y: 24.5, radius: 1.8, face: "right" },
+    { id: "shade-spot", activity: "shade", x: 22.5, y: 24.5, radius: 1.8, face: "left" },
+    { id: "sleep-spot", activity: "sleep", x: 40.5, y: 31.5, radius: 1.8, face: "up" },
+  ];
+
   const map: WorldMap = {
     id: "sea-of-galilee",
     name: "Sea of Galilee & Capernaum",
@@ -333,12 +379,12 @@ export function buildCapernaum(): WorldMap {
     spots,
     regions,
     npcs,
-    activitySpots: [],
+    activitySpots,
     spawn: { x: 41.5, y: 33.5 },
   };
   // Shoreline-relative placements can land a spot on water or under an object; move those to solid ground.
   const grid = new WalkGrid(map);
-  for (const s of Object.values(spots)) {
+  for (const s of [...Object.values(spots), ...activitySpots]) {
     if (grid.isWalkable(Math.floor(s.x), Math.floor(s.y))) continue;
     const near = grid.nearestWalkable(s.x - 0.5, s.y - 0.5);
     if (near) Object.assign(s, { x: near.x + 0.5, y: near.y + 0.5 });
@@ -346,13 +392,78 @@ export function buildCapernaum(): WorldMap {
   return map;
 }
 
+/**
+ * Daily routines for Jesus and the disciples closest to Him, from what the Gospels show of their days in Capernaum.
+ * `home` is the door they go in at when a routine takes them indoors. Jesus, Peter and Matthew are always outdoors
+ * somewhere the player can walk to, so a lesson can be started at any hour.
+ */
+const ROUTINES: Record<string, { home: string; schedule: ScheduleEntry[] }> = {
+  jesus: {
+    home: "peter-house",
+    schedule: [
+      { from: 4, to: 6.5, spot: "jesus-prayer", wander: 0, face: "right", pose: "kneel", doing: "Praying alone in a quiet place before dawn (Mark 1:35)" },
+      { from: 6.5, to: 8.5, spot: "boats", wander: 2, doing: "Walking by the sea where the fishermen work (Mark 1:16)" },
+      { from: 8.5, to: 17.5, spot: "jesus-home", wander: 0, face: "down", pose: "sit", doing: "Teaching the crowds by the sea (Mark 4:1)" },
+      { from: 17.5, to: 22, spot: "meal-jesus", wander: 0, face: "down", pose: "sit", doing: "Sharing the evening meal at Simon Peter's house (Mark 1:29-31)" },
+      { from: 22, to: 4, spot: "jesus-rest", wander: 0, face: "down", pose: "sleep", doing: "Resting at Peter's house for the night (Mark 4:38)" },
+    ],
+  },
+  peter: {
+    home: "peter-house",
+    schedule: [
+      { from: 4, to: 7, spot: "peter-home", wander: 0, face: "right", pose: "work", doing: "Bringing the boat in at first light (Luke 5:2)" },
+      { from: 7, to: 10, spot: "peter-nets", wander: 0, face: "right", pose: "work", doing: "Washing and mending the nets (Luke 5:2-5)" },
+      { from: 10, to: 17.5, spot: "listen-peter", wander: 0, face: "up", pose: "sit", doing: "Listening to Jesus teach from the shore (Luke 5:3)" },
+      { from: 17.5, to: 22, spot: "meal-peter", wander: 0, face: "right", pose: "sit", doing: "Hosting the evening meal at his house (Mark 1:29)" },
+      { from: 22, to: 4, spot: "peter-rest", wander: 0, face: "down", pose: "sleep", doing: "Asleep in his courtyard (Psalm 4:8)" },
+    ],
+  },
+  matthew: {
+    home: "matthew-house",
+    schedule: [
+      { from: 6.5, to: 9, spot: "matthew-market", wander: 2, doing: "At the market, his heart set on a better treasure (Matthew 6:21)" },
+      { from: 9, to: 11, spot: "matthew-home", wander: 0, face: "down", doing: "By his old tax booth, where Jesus called him (Matthew 9:9)" },
+      { from: 11, to: 17.5, spot: "listen-matthew", wander: 0, face: "up", pose: "sit", doing: "Listening to Jesus teach by the sea (Mark 4:1)" },
+      { from: 17.5, to: 21.5, spot: "meal-matthew", wander: 0, face: "down", pose: "sit", doing: "Sharing the evening meal with Jesus and the others (Luke 5:29)" },
+      { from: 21.5, to: 6.5, spot: "matthew-house", wander: 0, face: "down", pose: "sleep", doing: "Asleep in the courtyard of his house (Psalm 127:2)" },
+    ],
+  },
+  andrew: {
+    home: "peter-house",
+    schedule: [
+      { from: 4.5, to: 10, spot: "andrew-home", wander: 0, face: "left", pose: "work", doing: "Casting and mending nets with his brother Simon (Mark 1:16)" },
+      { from: 10, to: 17.5, spot: "listen-andrew", wander: 0, face: "up", pose: "sit", doing: "Listening to Jesus teach by the sea (Mark 4:1)" },
+      { from: 17.5, to: 21.5, spot: "meal-andrew", wander: 0, face: "down", pose: "sit", doing: "At supper in the house he shares with Simon (Mark 1:29)" },
+      { from: 21.5, to: 4.5, spot: null, wander: 0, doing: "Indoors for the night" },
+    ],
+  },
+  "james-zebedee": {
+    home: "fisher-house",
+    schedule: [
+      { from: 4.5, to: 10, spot: "james-zebedee-home", wander: 0, pose: "work", doing: "Mending the nets in the boat with his brother John (Mark 1:19)" },
+      { from: 10, to: 17.5, spot: "listen-james", wander: 0, face: "up", pose: "sit", doing: "Listening to Jesus teach by the sea (Mark 4:1)" },
+      { from: 17.5, to: 21.5, spot: "meal-james", wander: 0, face: "up", pose: "sit", doing: "At the evening meal in Peter's courtyard (Mark 1:29)" },
+      { from: 21.5, to: 4.5, spot: null, wander: 0, doing: "Indoors for the night" },
+    ],
+  },
+  john: {
+    home: "fisher-house",
+    schedule: [
+      { from: 4.5, to: 10, spot: "john-home", wander: 0, pose: "work", doing: "Mending the nets in the boat with his brother James (Mark 1:19)" },
+      { from: 10, to: 17.5, spot: "listen-john", wander: 0, face: "up", pose: "sit", doing: "Listening to Jesus teach by the sea (Mark 4:1)" },
+      { from: 17.5, to: 21.5, spot: "meal-john", wander: 0, face: "up", pose: "sit", doing: "At the evening meal in Peter's courtyard (Mark 1:29)" },
+      { from: 21.5, to: 4.5, spot: null, wander: 0, doing: "Indoors for the night" },
+    ],
+  },
+};
+
 const SKIN = ["#c48b62", "#a9734d", "#8d5a3b", "#b07a52", "#9b6644", "#7a4a30"];
 const HAIR = ["#1d1510", "#2b1d14", "#3b2b1f", "#4a3626"];
 const ROBES = ["#b9a27a", "#8f7454", "#6c7c8c", "#9b4a2e", "#5f7a5a", "#cbb68c", "#7a6a52", "#a88d63", "#56617a", "#8a5a6a"];
 const CLOTHS = ["#d9cdb0", "#6b4f3a", "#8a3b2e", "#45607a", "#a89a7a"];
 
-/** Townsfolk with simple daily routines so the town feels lived in. */
-function townsfolk(houseCount: number): NpcDef[] {
+/** Townsfolk with simple daily routines so the town feels lived in. Each goes home to one of `doors` at night. */
+function townsfolk(doors: string[]): NpcDef[] {
   const r = rng(99);
   const pick = <T,>(list: T[]) => list[Math.floor(r() * list.length)];
   const person = (kind: "man" | "woman" | "child"): Appearance => ({
@@ -367,46 +478,50 @@ function townsfolk(houseCount: number): NpcDef[] {
   });
   const out: NpcDef[] = [];
   let n = 0;
-  const home = () => `door-${n % houseCount}`;
+  const home = () => doors[n % doors.length];
   const add = (kind: "man" | "woman" | "child", schedule: ScheduleEntry[], speed: number) => {
     out.push({ id: `townsfolk-${n}`, role: "townsfolk", appearance: person(kind), home: home(), schedule, speed });
     n++;
   };
 
-  // Fishermen work by the boats from before dawn into the evening (Luke 5:2).
+  // Fishermen work by the boats from before dawn into the evening, rain or shine (Luke 5:2).
   for (let i = 0; i < 4; i++) {
-    add("man", [{ from: 4.5, to: 19, spot: i % 2 ? "boats" : "shore-east", wander: 3 }], 2.2);
+    add("man", [{ from: 4.5, to: 19, spot: i % 2 ? "boats" : "shore-east", wander: 3, pose: "work", doing: "Working by the boats" }], 2.2);
   }
-  // Merchants keep the stalls in the market by day.
+  // Merchants keep the stalls in the market by day, and shut them when the rain comes down hard.
   for (let i = 0; i < 4; i++) {
-    add(i % 2 ? "woman" : "man", [{ from: 6.5, to: 18.5, spot: `stall-${i}`, wander: 0 }], 2);
+    add(i % 2 ? "woman" : "man", [
+      { from: 6.5, to: 18.5, spot: `stall-${i}`, wander: 0, doing: "Selling at a market stall", shelterFromRain: true },
+    ], 2);
   }
   // Villagers fetch water in the morning, shop, and gather in the square in the evening.
   for (let i = 0; i < 6; i++) {
     add(i % 2 ? "woman" : "man", [
-      { from: 6, to: 9, spot: "well", wander: 3 },
-      { from: 9, to: 12, spot: "plaza", wander: 5 },
-      { from: 14, to: 17.5, spot: i % 3 === 0 ? "shore-west" : "plaza", wander: 5 },
-      { from: 17.5, to: 21, spot: "plaza", wander: 4 },
+      { from: 6, to: 9, spot: "well", wander: 3, doing: "Drawing water at the well", shelterFromRain: true },
+      { from: 9, to: 12, spot: "plaza", wander: 5, doing: "Shopping in the market", shelterFromRain: true },
+      { from: 14, to: 17.5, spot: i % 3 === 0 ? "shore-west" : "plaza", wander: 5, shelterFromRain: true },
+      { from: 17.5, to: 21, spot: "plaza", wander: 4, doing: "Talking with neighbours in the square", shelterFromRain: true },
     ], 1.8);
   }
   // Children play in the square and on the beach.
   for (let i = 0; i < 4; i++) {
     add("child", [
-      { from: 8, to: 12, spot: "plaza", wander: 6 },
-      { from: 12, to: 18, spot: i % 2 ? "shore-west" : "boats", wander: 5 },
+      { from: 8, to: 12, spot: "plaza", wander: 6, doing: "Playing in the square", shelterFromRain: true },
+      { from: 12, to: 18, spot: i % 2 ? "shore-west" : "boats", wander: 5, doing: "Playing on the beach", shelterFromRain: true },
     ], 3);
   }
-  // A crowd gathers to listen to Jesus on the shore in the day (Mark 4:1).
+  // A crowd sits on the shore to listen to Jesus in the day (Mark 4:1).
   for (let i = 0; i < 6; i++) {
-    add(i % 3 === 0 ? "woman" : "man", [{ from: 8.5, to: 17, spot: `crowd-${i}`, wander: 0, face: "up" }], 1.8);
+    add(i % 3 === 0 ? "woman" : "man", [
+      { from: 8.5, to: 17, spot: `crowd-${i}`, wander: 0, face: "up", pose: "sit", doing: "Listening to Jesus teach" },
+    ], 1.8);
   }
   // Travellers on the Via Maris.
   for (let i = 0; i < 3; i++) {
     add("man", [
-      { from: 6, to: 11, spot: i % 2 ? "road-east" : "road-west", wander: 1 },
-      { from: 11, to: 16, spot: i % 2 ? "road-west" : "road-east", wander: 1 },
-      { from: 16, to: 19.5, spot: "plaza", wander: 4 },
+      { from: 6, to: 11, spot: i % 2 ? "road-east" : "road-west", wander: 1, doing: "Travelling the Via Maris" },
+      { from: 11, to: 16, spot: i % 2 ? "road-west" : "road-east", wander: 1, doing: "Travelling the Via Maris" },
+      { from: 16, to: 19.5, spot: "plaza", wander: 4, doing: "Resting in the square after the road", shelterFromRain: true },
     ], 2);
   }
   return out;

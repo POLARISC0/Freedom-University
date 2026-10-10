@@ -20,7 +20,6 @@
     "@prisma/client": "^7.10.0",
     "better-sqlite3": "^13.0.3",
     "next": "16.4.0",
-    "phaser": "4.2.1",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-markdown": "^10.1.0",
