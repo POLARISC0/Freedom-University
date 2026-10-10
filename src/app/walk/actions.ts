@@ -1,18 +1,20 @@
 "use server";
 
-import { z } from "zod";
+import type { z } from "zod";
 import { redirect } from "next/navigation";
 import { endSession, getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { getLesson } from "@/walk/content";
 import {
-  canMoveTo,
-  JOURNAL_KINDS,
-  MOODS,
-  type CheckInView,
-  type JournalEntryView,
-  type LessonProgressView,
-} from "@/walk/progress";
+  ACTION_MESSAGES,
+  AdvanceSchema,
+  CheckInSchema,
+  isPlausibleDay,
+  JournalSchema,
+  readChoices,
+  ReflectionSchema,
+} from "@/walk/action-rules";
+import { canMoveTo, type CheckInView, type JournalEntryView, type LessonProgressView } from "@/walk/progress";
 import { toJournalView, toProgressView } from "@/walk/server/data";
 
 export type ActionResult<T> = { ok: true; data: T } | { ok: false; error: string };
@@ -24,12 +26,6 @@ async function loadProgressRow(userId: string, lessonSlug: string) {
   return db.walkLessonProgress.findUnique({ where: { userId_lessonSlug: { userId, lessonSlug } } });
 }
 
-const AdvanceSchema = z.object({
-  lessonSlug: z.string(),
-  toStep: z.number().int().min(0),
-  choice: z.object({ stepIndex: z.number().int().min(0), optionId: z.string().max(64) }).optional(),
-});
-
 /** Start a lesson (toStep 0), move to the next step, or go back to replay it. */
 export async function advanceLesson(input: z.infer<typeof AdvanceSchema>): Promise<ActionResult<LessonProgressView>> {
   const user = await getCurrentUser();
@@ -40,15 +36,12 @@ export async function advanceLesson(input: z.infer<typeof AdvanceSchema>): Promi
   const lesson = getLesson(lessonSlug);
   if (!lesson) return fail("Unknown lesson.");
   // Finishing happens only by accepting the challenge.
-  if (toStep >= lesson.steps.length) return fail("Accept the challenge to finish the lesson.");
+  if (toStep >= lesson.steps.length) return fail(ACTION_MESSAGES.acceptToFinish);
 
   const row = await loadProgressRow(user.id, lessonSlug);
-  if (!canMoveTo(lesson, row?.stepIndex ?? 0, toStep)) return fail("That step isn't available yet.");
+  if (!canMoveTo(lesson, row?.stepIndex ?? 0, toStep)) return fail(ACTION_MESSAGES.stepUnavailable);
 
-  const choices: Record<string, string> =
-    row?.choices && typeof row.choices === "object" && !Array.isArray(row.choices)
-      ? Object.fromEntries(Object.entries(row.choices).map(([k, v]) => [k, String(v)]))
-      : {};
+  const choices = readChoices(row?.choices);
   if (choice) {
     const step = lesson.steps[choice.stepIndex];
     if (step?.kind !== "choice" || !step.options.some((o) => o.id === choice.optionId)) {
@@ -65,12 +58,6 @@ export async function advanceLesson(input: z.infer<typeof AdvanceSchema>): Promi
   return { ok: true, data: toProgressView(saved) };
 }
 
-const ReflectionSchema = z.object({
-  lessonSlug: z.string(),
-  stepIndex: z.number().int().min(0),
-  text: z.string().max(10_000),
-});
-
 /** Save the player's reflection to their journal (if they wrote one) and move on. */
 export async function submitReflection(
   input: z.infer<typeof ReflectionSchema>,
@@ -84,14 +71,14 @@ export async function submitReflection(
   const step = lesson?.steps[stepIndex];
   if (!lesson || step?.kind !== "reflection") return fail("Unknown reflection.");
   const row = await loadProgressRow(user.id, lessonSlug);
-  if (!row || row.stepIndex !== stepIndex) return fail("Please continue the lesson from where you are.");
+  if (!row || row.stepIndex !== stepIndex) return fail(ACTION_MESSAGES.continueLesson);
 
   // Only the request that actually moves the lesson on writes the entry, so two tabs can't save it twice.
   const moved = await db.walkLessonProgress.updateMany({
     where: { id: row.id, stepIndex },
     data: { stepIndex: stepIndex + 1 },
   });
-  if (moved.count === 0) return fail("Please continue the lesson from where you are.");
+  if (moved.count === 0) return fail(ACTION_MESSAGES.continueLesson);
   const body = text.trim();
   const entry = body
     ? await db.walkJournalEntry.create({
@@ -111,7 +98,7 @@ export async function acceptChallenge(lessonSlug: string): Promise<ActionResult<
   const row = await loadProgressRow(user.id, lessonSlug);
   const last = lesson.steps.length - 1;
   if (!row || row.stepIndex !== last || lesson.steps[last].kind !== "challenge") {
-    return fail("Please continue the lesson from where you are.");
+    return fail(ACTION_MESSAGES.continueLesson);
   }
   const now = new Date();
   const saved = await db.walkLessonProgress.update({
@@ -140,13 +127,6 @@ export async function setChallengeDone(lessonSlug: string, done: boolean): Promi
   return { ok: true, data: toProgressView(saved) };
 }
 
-const JournalSchema = z.object({
-  id: z.string().optional(),
-  kind: z.enum(JOURNAL_KINDS),
-  title: z.string().trim().max(200).optional(),
-  body: z.string().trim().min(1, "Write something first.").max(10_000, "That entry is too long."),
-});
-
 export async function saveJournalEntry(input: z.infer<typeof JournalSchema>): Promise<ActionResult<JournalEntryView>> {
   const user = await getCurrentUser();
   if (!user) return fail(SIGN_IN);
@@ -174,14 +154,6 @@ export async function deleteJournalEntry(id: string): Promise<ActionResult<{ id:
   return { ok: true, data: { id } };
 }
 
-const DAY = /^\d{4}-\d{2}-\d{2}$/;
-const CheckInSchema = z.object({
-  day: z.string().regex(DAY),
-  mood: z.enum(MOODS),
-  note: z.string().trim().max(2_000).optional(),
-  addToJournal: z.boolean().optional(),
-});
-
 /** The daily check-in. `day` is the player's local date; it must be within a day or so of the server's. */
 export async function saveCheckIn(
   input: z.infer<typeof CheckInSchema>,
@@ -191,8 +163,7 @@ export async function saveCheckIn(
   const parsed = CheckInSchema.safeParse(input);
   if (!parsed.success) return fail("Invalid check-in.");
   const { day, mood, note, addToJournal } = parsed.data;
-  const offsetDays = Math.abs(Date.parse(`${day}T12:00:00Z`) - Date.now()) / 86_400_000;
-  if (!(offsetDays <= 1.6)) return fail("Your device's date looks wrong. Check it and try again.");
+  if (!isPlausibleDay(day)) return fail(ACTION_MESSAGES.wrongDate);
 
   const checkIn = await db.walkCheckIn.upsert({
     where: { userId_day: { userId: user.id, day } },

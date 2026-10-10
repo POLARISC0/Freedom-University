@@ -45,3 +45,6 @@ next-env.d.ts
 /src/generated/
 *.db
 *.db-journal
+
+# static preview build
+/preview-dist/

@@ -4,29 +4,13 @@ import { anthropic, describeApiError, fallbackParams, hasAnthropicKey, MODEL } f
 import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { buildCharacterSystemPrompt, concernNote } from "@/walk/ai/prompts";
-import { getCharacter, getLesson, LESSONS } from "@/walk/content";
+import { HISTORY_LIMIT, refusalNote, resolveThread } from "@/walk/ai/threads";
+import { LESSONS } from "@/walk/content";
 import { detectConcerns } from "@/walk/safety/concern";
 import { getConversation } from "@/walk/server/data";
 
-// How many earlier messages are sent back to the model each turn.
-const HISTORY_LIMIT = 30;
 // A generous ceiling that keeps one account from running up the AI bill.
 const MESSAGES_PER_HOUR = 60;
-
-/** Lesson conversations live in a thread named after the lesson; everything else is "talk". */
-function resolveThread(characterId: string, lessonSlug: string | undefined) {
-  const character = getCharacter(characterId);
-  if (!character) return { error: "Unknown character." } as const;
-  if (lessonSlug) {
-    const lesson = getLesson(lessonSlug);
-    if (!lesson || lesson.mentorId !== character.id) return { error: "Unknown lesson." } as const;
-    return { character, lesson, thread: lesson.slug } as const;
-  }
-  if (!character.conversational) {
-    return { error: `Conversations with ${character.shortName} open in a later chapter.` } as const;
-  }
-  return { character, lesson: undefined, thread: "talk" } as const;
-}
 
 export async function GET(request: Request) {
   const user = await getCurrentUser();
@@ -127,7 +111,7 @@ export async function POST(request: Request) {
         }
         const final = await stream.finalMessage();
         if (final.stop_reason === "refusal") {
-          const note = `\n\n_${character.shortName} can't continue with that. Try asking another way._`;
+          const note = `\n\n_${refusalNote(character.shortName)}_`;
           text += note;
           controller.enqueue(encoder.encode(note));
         }

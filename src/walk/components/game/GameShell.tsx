@@ -322,7 +322,7 @@ export function GameShell({
       {world && (
         <>
           {/* Top bar: where and when, and the journal, check-in and paths. */}
-          <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-2 sm:p-3">
+          <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-2 pt-[max(0.5rem,env(safe-area-inset-top))] sm:p-3 sm:pt-[max(0.75rem,env(safe-area-inset-top))]">
             <div className="pointer-events-auto flex items-center gap-2 rounded-2xl bg-black/45 px-3 py-1.5 text-white shadow backdrop-blur">
               <Link href="/walk" className="text-sm opacity-80 hover:opacity-100" aria-label="Leave the game">
                 ←
@@ -368,7 +368,7 @@ export function GameShell({
 
           {/* The active quest. */}
           {quest && !panel && (
-            <div className="pointer-events-none absolute inset-x-0 top-16 flex justify-center px-3 sm:top-4">
+            <div className="pointer-events-none absolute inset-x-0 top-[calc(4rem+env(safe-area-inset-top,0px))] flex justify-center px-3 sm:top-[calc(1rem+env(safe-area-inset-top,0px))]">
               <div className="pointer-events-auto flex max-w-md items-center gap-2 rounded-xl border border-amber-300/50 bg-black/55 px-3 py-2 text-sm text-white shadow backdrop-blur">
                 <span aria-hidden className="text-amber-300">
                   ✦
@@ -386,7 +386,7 @@ export function GameShell({
 
           {/* Talk to whoever is close by. */}
           {nearby && !panel && (
-            <div className="pointer-events-none absolute inset-x-0 bottom-6 flex justify-center">
+            <div className="pointer-events-none absolute inset-x-0 bottom-[calc(1.5rem+env(safe-area-inset-bottom,0px))] flex justify-center">
               <button
                 className="pointer-events-auto rounded-full border-2 border-amber-200 bg-[#275f6c] px-5 py-2.5 text-sm font-semibold text-white shadow-lg"
                 onClick={() => world?.interactNearby()}
@@ -398,7 +398,7 @@ export function GameShell({
           )}
 
           <button
-            className="hud-button absolute bottom-3 left-3 !bg-[#7a1f18]/80"
+            className="hud-button absolute bottom-[calc(0.75rem+env(safe-area-inset-bottom,0px))] left-3 !bg-[#7a1f18]/80"
             onClick={() => setPanel({ type: "help" })}
           >
             ♥ Need help now?
@@ -418,7 +418,7 @@ export function GameShell({
               role="dialog"
               aria-modal="false"
               aria-label={panelLabel}
-              className="absolute inset-x-0 bottom-0 max-h-[70dvh] overflow-y-auto rounded-t-2xl border border-line bg-bg p-4 pb-8 shadow-2xl outline-none select-text sm:inset-x-auto sm:top-3 sm:right-3 sm:bottom-3 sm:max-h-none sm:w-[460px] sm:rounded-2xl sm:p-5"
+              className="absolute inset-x-0 bottom-0 max-h-[70dvh] overflow-y-auto rounded-t-2xl border border-line bg-bg p-4 pb-[calc(2rem+env(safe-area-inset-bottom,0px))] shadow-2xl outline-none select-text sm:inset-x-auto sm:top-3 sm:right-3 sm:bottom-3 sm:max-h-none sm:w-[460px] sm:rounded-2xl sm:p-5"
             >
               {panel.type !== "welcome" && (
                 <button

@@ -36,6 +36,8 @@ export function ChatPanel({
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [aiConfigured, setAiConfigured] = useState(true);
+  // Why conversations are unavailable, when whatever serves them says so.
+  const [aiNote, setAiNote] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -45,10 +47,11 @@ export function ChatPanel({
     if (lessonSlug) params.set("lessonSlug", lessonSlug);
     fetch(`/api/walk/chat?${params}`, { signal: controller.signal })
       .then((res) => res.json())
-      .then((body: { messages?: Message[]; aiConfigured?: boolean; error?: string }) => {
+      .then((body: { messages?: Message[]; aiConfigured?: boolean; aiNote?: string; error?: string }) => {
         if (body.error) setError(body.error);
         setMessages(body.messages ?? []);
         setAiConfigured(body.aiConfigured !== false);
+        if (body.aiNote) setAiNote(body.aiNote);
         setLoaded(true);
       })
       .catch(() => {
@@ -87,7 +90,12 @@ export function ChatPanel({
       });
       if (!res.ok || !res.body) {
         const body = await res.json().catch(() => ({}));
-        if (res.status === 503) setAiConfigured(false);
+        if (res.status === 503) {
+          setAiConfigured(false);
+          if (body.error) setAiNote(body.error);
+          setMessages((prev) => prev.filter((m) => m.id !== replyId));
+          return;
+        }
         throw new Error(body.error ?? `Request failed (${res.status})`);
       }
       const reader = res.body.getReader();
@@ -99,7 +107,9 @@ export function ChatPanel({
         setMessages((prev) => prev.map((m) => (m.id === replyId ? { ...m, content: m.content + chunk } : m)));
       }
     } catch (err) {
-      setMessages((prev) => prev.filter((m) => !(m.id === replyId && m.content === "")));
+      // A reply that was withdrawn mid-stream (a refusal) comes off the screen; otherwise keep what arrived.
+      const withdrawn = err instanceof Error && err.name === "WithdrawnReply";
+      setMessages((prev) => prev.filter((m) => !(m.id === replyId && (withdrawn || m.content === ""))));
       if (!controller.signal.aborted) setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
       setStreaming(false);
@@ -112,8 +122,8 @@ export function ChatPanel({
       {intro && <p className="text-sm text-muted italic">{intro}</p>}
       {!aiConfigured && (
         <p className="rounded-lg border border-line bg-surface-2 px-3 py-2 text-sm">
-          Conversations with {character.shortName} need an Anthropic API key on the server. Everything else in the
-          game works without one.
+          {aiNote ??
+            `Conversations with ${character.shortName} need an Anthropic API key on the server. Everything else in the game works without one.`}
         </p>
       )}
 
