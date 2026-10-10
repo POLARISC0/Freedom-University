@@ -30,6 +30,8 @@ export interface ActivityDef {
   id: string;
   /** The button, e.g. "Pray here". */
   action: string;
+  /** What the player is doing while it runs, for the activity bar, e.g. "Praying in the quiet place". */
+  doing: string;
   /** What the toast says afterwards, e.g. "You spent time in prayer." */
   done: string;
   /** What the player's character does while it runs. */

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useEffectEvent, useRef, useState, useTransition } from "react";
+import { flushSync } from "react-dom";
 import { advanceLesson, saveLife } from "@/app/walk/actions";
 import { getCharacter, getLesson, type Appearance } from "@/walk/content";
 import {
@@ -134,6 +135,7 @@ export function GameShell({
   const { toasts, show, dismiss } = useToasts();
   const storageKey = `walk:${userId}`;
   const panelRef = useRef<HTMLDivElement>(null);
+  const hudRef = useRef<HTMLDivElement>(null);
 
   // The newest life, so several changes in one moment (an hour passing as an activity ends) build on each other.
   const lifeRef = useRef(initialLife);
@@ -308,11 +310,15 @@ export function GameShell({
     };
   }, [world, storageKey]);
 
-  // Keep the player visible beside (or above) an open panel.
+  // Keep the player visible beside (or above) an open panel. On wide screens the panel starts below the HUD at the
+  // top (`hudBottom`), so the menu and the needs stay in view and in reach.
   const [insets, setInsets] = useState({ right: 0, bottom: 0 });
+  const [hudBottom, setHudBottom] = useState(0);
   useEffect(() => {
     const el = panelRef.current;
+    const hud = hudRef.current;
     const measure = () => {
+      setHudBottom(hud ? Math.ceil(hud.getBoundingClientRect().bottom) : 0);
       if (!el) return setInsets({ right: 0, bottom: 0 });
       const rect = el.getBoundingClientRect();
       setInsets(
@@ -325,8 +331,9 @@ export function GameShell({
     if (!el) return;
     const observer = new ResizeObserver(measure);
     observer.observe(el);
+    if (hud) observer.observe(hud);
     return () => observer.disconnect();
-  }, [panel]);
+  }, [panel, world]);
 
   // A panel opens at its top, with focus inside it.
   useEffect(() => {
@@ -368,7 +375,9 @@ export function GameShell({
   function walkToMentor(slug: string) {
     const lesson = getLesson(slug);
     if (!world || !lesson) return;
-    setPanel(null);
+    // Close the panel first: already beside the mentor, `approach` talks to them at once, and a panel still open
+    // would stop that conversation opening.
+    flushSync(() => setPanel(null));
     world.setInputEnabled(true);
     world.approach(lesson.mentorId);
     showToast(`Walking to ${getCharacter(lesson.mentorId)?.shortName}…`);
@@ -539,22 +548,27 @@ export function GameShell({
       {world && (
         <>
           {/* Top: where and when, the menu, the five needs, and the active quest, stacked so nothing overlaps. */}
-          <div className="pointer-events-none absolute inset-x-0 top-0 flex flex-col gap-2 p-2 pt-[max(0.5rem,env(safe-area-inset-top))] sm:p-3 sm:pt-[max(0.75rem,env(safe-area-inset-top))]">
+          <div
+            ref={hudRef}
+            className="pointer-events-none absolute inset-x-0 top-0 flex flex-col gap-2 p-2 pt-[max(0.5rem,env(safe-area-inset-top))] sm:p-3 sm:pt-[max(0.75rem,env(safe-area-inset-top))]"
+          >
             <div className="flex items-start justify-between gap-2">
               <div className="pointer-events-auto flex min-w-0 items-center gap-2 rounded-2xl bg-black/45 px-3 py-1.5 text-white shadow backdrop-blur">
                 <Link href="/walk" className="text-sm opacity-80 hover:opacity-100" aria-label="Leave the game">
                   ←
                 </Link>
                 <div className="min-w-0 leading-tight">
-                  <p className="truncate font-serif text-sm font-semibold">{region || "Capernaum"}</p>
-                  <p className="text-[11px] opacity-85 sm:flex sm:gap-1">
+                  {/* On a phone a long place name wraps, beside the two rows of the menu, rather than being cut off. */}
+                  <p className="font-serif text-sm font-semibold sm:truncate">{region || "Capernaum"}</p>
+                  {/* Time and weather on one line only where the menu leaves room for it. */}
+                  <p className="text-[11px] opacity-85 lg:flex lg:gap-1">
                     <span className="block truncate">
                       <span aria-hidden>
                         {phase === "night" ? "🌙" : phase === "dawn" ? "🌅" : phase === "evening" ? "🌇" : "☀️"}
                       </span>{" "}
                       {timeOfDayLabel(minutes)}
                     </span>
-                    <span aria-hidden className="hidden sm:inline">
+                    <span aria-hidden className="hidden lg:inline">
                       ·
                     </span>
                     <span className="block truncate">
@@ -650,7 +664,8 @@ export function GameShell({
               role="dialog"
               aria-modal="false"
               aria-label={panelLabel}
-              className="absolute inset-x-0 bottom-0 max-h-[70dvh] overflow-y-auto rounded-t-2xl border border-line bg-bg p-4 pb-[calc(2rem+env(safe-area-inset-bottom,0px))] shadow-2xl outline-none select-text sm:inset-x-auto sm:top-3 sm:right-3 sm:bottom-3 sm:max-h-none sm:w-[460px] sm:rounded-2xl sm:p-5"
+              style={{ "--hud-bottom": `${hudBottom}px` } as React.CSSProperties}
+              className="absolute inset-x-0 bottom-0 max-h-[70dvh] overflow-y-auto rounded-t-2xl border border-line bg-bg p-4 pb-[calc(2rem+env(safe-area-inset-bottom,0px))] shadow-2xl outline-none select-text sm:inset-x-auto sm:top-[max(0.75rem,var(--hud-bottom))] sm:right-3 sm:bottom-3 sm:max-h-none sm:w-[460px] sm:rounded-2xl sm:p-5"
             >
               {!firstVisit && (
                 <button
@@ -665,10 +680,15 @@ export function GameShell({
             </div>
           )}
 
+          {/* Toasts sit over the world, never over an open panel: beside it one at a time, or on phones above it, where
+              there is only room for a line; the larger ones wait for the panel to close. */}
           <ToastStack
             toasts={toasts}
             onDismiss={dismiss}
-            className="absolute inset-x-0 bottom-[calc(10rem+env(safe-area-inset-bottom,0px))] sm:bottom-[calc(5.5rem+env(safe-area-inset-bottom,0px))]"
+            max={panel ? 1 : undefined}
+            linesOnly={Boolean(panel) && insets.bottom > 0}
+            style={panel ? { right: insets.right, bottom: insets.bottom ? insets.bottom + 8 : undefined } : undefined}
+            className="absolute inset-x-0 bottom-[calc(10.5rem+env(safe-area-inset-bottom,0px))] sm:bottom-[calc(5.5rem+env(safe-area-inset-bottom,0px))]"
           />
         </>
       )}

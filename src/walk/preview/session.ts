@@ -21,11 +21,19 @@ export function change(next: Partial<WalkData>) {
   data = { ...data, ...next };
 }
 
-/** Queue a save. Failures are handled by the store (it moves to this browser); nothing here can throw. */
+/**
+ * Queue a save. Saves run one at a time, in the order they were queued. Failures are handled by the store (it
+ * retries, or moves to this browser); nothing here can throw.
+ */
 export function persist(write: (s: Store) => Promise<void>) {
   const s = store;
   if (!s) return;
   queue = queue.then(() => write(s)).catch((error) => console.warn("walk preview: save failed", error));
+}
+
+/** Resolves once every save queued so far has run. */
+export function whenSaved(): Promise<void> {
+  return queue;
 }
 
 export function activeStore(): FallbackStore | null {

@@ -34,7 +34,12 @@ export function ChatPanel({
   onMessageSent?: () => void;
 }) {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [loaded, setLoaded] = useState(false);
+  // The conversation whose history has arrived. Until this one's has, nothing can be sent: the history would
+  // replace the new message, and its reply would have nowhere to go. (The panel can be reused for another
+  // character or lesson, so a flag alone would let a send through early.)
+  const thread = `${character.id}:${lessonSlug ?? ""}`;
+  const [loadedThread, setLoadedThread] = useState<string | null>(null);
+  const loaded = loadedThread === thread;
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,16 +60,16 @@ export function ChatPanel({
         setMessages(body.messages ?? []);
         setAiConfigured(body.aiConfigured !== false);
         if (body.aiNote) setAiNote(body.aiNote);
-        setLoaded(true);
+        setLoadedThread(thread);
       })
       .catch(() => {
-        if (!controller.signal.aborted) setLoaded(true);
+        if (!controller.signal.aborted) setLoadedThread(thread);
       });
     return () => {
       controller.abort();
       abortRef.current?.abort();
     };
-  }, [character.id, lessonSlug]);
+  }, [character.id, lessonSlug, thread]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -72,7 +77,8 @@ export function ChatPanel({
 
   async function send(text: string) {
     const message = text.trim();
-    if (!message || streaming) return;
+    // Before the history has loaded the message stays in the box, ready to send.
+    if (!message || streaming || !loaded) return;
     setError(null);
     setInput("");
     const replyId = `reply-${Date.now()}`;
@@ -132,10 +138,11 @@ export function ChatPanel({
       )}
 
       <div className="space-y-4" aria-live="polite">
+        {!loaded && <p className="animate-pulse text-sm text-muted">Opening your conversation with {character.shortName}…</p>}
         {loaded && messages.length === 0 && aiConfigured && (
           <p className="text-sm text-muted">Ask {character.shortName} anything, or pick a question below.</p>
         )}
-        {messages.map((m) =>
+        {(loaded ? messages : []).map((m) =>
           m.role === "user" ? (
             <div key={m.id} className="space-y-2">
               <div className="ml-auto w-fit max-w-[88%] rounded-2xl rounded-br-sm bg-brand-soft px-3.5 py-2 whitespace-pre-wrap">
@@ -165,7 +172,7 @@ export function ChatPanel({
 
       {error && <p className="text-sm text-danger" role="alert">{error}</p>}
 
-      {aiConfigured && !streaming && (
+      {loaded && aiConfigured && !streaming && (
         <div className="flex flex-wrap gap-1.5">
           {suggestions.map((s) => (
             <button
@@ -208,7 +215,7 @@ export function ChatPanel({
               Stop
             </button>
           ) : (
-            <button disabled={!input.trim()} className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-brand-ink disabled:opacity-50">
+            <button disabled={!loaded || !input.trim()} className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-brand-ink disabled:opacity-50">
               Send
             </button>
           )}

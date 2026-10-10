@@ -5,7 +5,7 @@
 import * as THREE from "three";
 import type { Appearance } from "@/walk/content";
 import type { Facing, Pose } from "@/walk/world/types";
-import type { NpcState, Walker } from "@/walk/world/world";
+import { PLAYER_SPEED, type NpcState, type Walker } from "@/walk/world/world";
 import { VoxelBuilder } from "./builder";
 import { damp } from "./camera";
 import { groundHeight, type HeightField } from "./heights";
@@ -16,6 +16,8 @@ const FACING_YAW: Record<Facing, number> = { down: 0, up: Math.PI, right: Math.P
 const BLEND_SECONDS = 0.28;
 /** Tiles walked per full stride (two steps). */
 const STRIDE = { person: 1.25, child: 0.9, sheep: 0.7 };
+/** Set down further away than this (tiles) and they're simply there: it was a jump, not a step or two. */
+const MAX_WALK_ON = 3;
 
 export interface Actor {
   /** The NPC id, or "player". */
@@ -32,9 +34,11 @@ export interface Actor {
   previous: Motion;
   blend: number;
   phase: number;
-  /** Where they were last frame, to see which way they're walking; `seen` is false until the first frame. */
+  /** Where they were drawn last frame, to see which way they're walking; `seen` is false until the first frame. */
   last: { x: number; y: number; seen: boolean };
   shown: boolean;
+  /** Walking the last steps to where the world has set them down (see `walkPlayerOn`). */
+  walkingOn: boolean;
 }
 
 /** Shortest signed difference between two angles. */
@@ -99,6 +103,7 @@ export class Crowd {
       phase: 0,
       last: { x: 0, y: 0, seen: false },
       shown: true,
+      walkingOn: false,
     };
   }
 
@@ -141,6 +146,14 @@ export class Crowd {
     this.group.add(this.playerMesh);
   }
 
+  /**
+   * The player is taking their place at an activity: the world has set them straight down on its spot (up to a couple
+   * of tiles away), so walk them there from where they were drawn instead of jumping.
+   */
+  walkPlayerOn() {
+    if (this.player.last.seen) this.player.walkingOn = true;
+  }
+
   update(dt: number, markers: Markers) {
     this.time += dt;
     markers.beginShadows();
@@ -157,34 +170,49 @@ export class Crowd {
       if (a.shown) root.scale.setScalar(0);
       a.shown = false;
       a.last.seen = false;
+      a.walkingOn = false;
       return;
     }
     if (!a.shown) root.scale.setScalar(1);
     a.shown = true;
 
-    // Turn smoothly towards the way they're walking, or the way they face when still.
+    // Drawn where the world has them, unless they're walking the last steps onto a spot (catching up quickly if
+    // they set off again before arriving).
     const firstFrame = !a.last.seen;
-    const moved = firstFrame ? 0 : Math.hypot(w.pos.x - a.last.x, w.pos.y - a.last.y);
+    let x = w.pos.x;
+    let z = w.pos.y;
+    if (a.walkingOn && !firstFrame) {
+      const left = Math.hypot(x - a.last.x, z - a.last.y);
+      const step = PLAYER_SPEED * (w.moving ? 2 : 1) * dt;
+      if (left > step && left <= MAX_WALK_ON) {
+        x = a.last.x + ((x - a.last.x) / left) * step;
+        z = a.last.y + ((z - a.last.y) / left) * step;
+      } else a.walkingOn = false;
+    }
+    const walking = w.moving || a.walkingOn;
+
+    // Turn smoothly towards the way they're walking, or the way they face when still.
+    const moved = firstFrame ? 0 : Math.hypot(x - a.last.x, z - a.last.y);
     let wantYaw = FACING_YAW[w.facing] ?? a.yaw;
-    if (w.moving && moved > 1e-4) wantYaw = Math.atan2(w.pos.x - a.last.x, w.pos.y - a.last.y);
+    if (walking && moved > 1e-4) wantYaw = Math.atan2(x - a.last.x, z - a.last.y);
     a.yaw = firstFrame ? wantYaw : a.yaw + angleDelta(a.yaw, wantYaw) * (1 - Math.exp(-12 * dt));
-    a.last.x = w.pos.x;
-    a.last.y = w.pos.y;
+    a.last.x = x;
+    a.last.y = z;
     a.last.seen = true;
 
     // What they're doing, blending from one motion into the next.
-    const motion: Motion = w.moving ? "walk" : ((w.pose as Pose) ?? "stand");
+    const motion: Motion = walking ? "walk" : ((w.pose as Pose) ?? "stand");
     if (motion !== a.motion) {
       a.previous = a.motion;
       a.motion = motion;
       a.blend = 0;
     }
     a.blend = Math.min(1, a.blend + dt / BLEND_SECONDS);
-    if (w.moving) a.phase += (moved / STRIDE[a.kind]) * Math.PI * 2;
+    if (walking) a.phase += (moved / STRIDE[a.kind]) * Math.PI * 2;
 
     // Feet on the ground, easing over the half-block steps.
-    const ground = groundHeight(this.field, w.pos.x, w.pos.y);
-    a.position.set(w.pos.x, firstFrame ? ground : damp(a.position.y, ground, 14, dt), w.pos.y);
+    const ground = groundHeight(this.field, x, z);
+    a.position.set(x, firstFrame ? ground : damp(a.position.y, ground, 14, dt), z);
     root.position.copy(a.position);
     root.rotation.y = a.yaw;
     applyPose(a.bones, a.kind, a.previous, a.motion, a.blend, this.time, a.phase, a.seed);

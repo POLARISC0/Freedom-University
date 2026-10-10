@@ -5,12 +5,34 @@ import * as THREE from "three";
 import { getActivity } from "@/walk/life/activities";
 import { NEED_INFO } from "@/walk/life/needs";
 import type { Need } from "@/walk/life/types";
+import type { ActivitySpot, Vec } from "@/walk/world/types";
+import type { World } from "@/walk/world/world";
 import { VoxelBuilder } from "./builder";
 import { makeGlowTexture } from "./textures";
 
 const MAX_RINGS = 24;
 const DEFAULT_RING = 0xf2d68a;
 const ringColors = new Map<string, number>();
+/** Activity rings show within this many tiles of the player, fading in over the last few. */
+export const RING_DISTANCE = 10;
+/** A tap on the ground this close to an activity's spot (in tiles) does it: inside its ring, or just outside. */
+const TAP_REACH = { mouse: 1.5, touch: 1.9 };
+
+/** How strongly an activity's ring glows (0..1) when its spot is this far from the player; 0 is not shown. */
+export function ringStrength(distance: number): number {
+  return Math.min(1, Math.max(0, (RING_DISTANCE - distance) / 3));
+}
+
+/**
+ * The activity a tap on the ground (a point in tiles) lands on or near, for tap-to-do: `approach` it to walk there
+ * and do it. Only rings the player can see count; a tap on a spot too far away to show one just walks.
+ */
+export function activityAtTap(world: Pick<World, "activitySpotAt" | "player">, point: Vec, touch: boolean): ActivitySpot | undefined {
+  const spot = world.activitySpotAt(point, touch ? TAP_REACH.touch : TAP_REACH.mouse);
+  if (!spot) return undefined;
+  const p = world.player.pos;
+  return ringStrength(Math.hypot(spot.x - p.x, spot.y - p.y)) > 0.2 ? spot : undefined;
+}
 
 /**
  * A ring's colour: the colour of the need its activity feeds most (the same as that need's meter in the HUD),

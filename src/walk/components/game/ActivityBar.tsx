@@ -4,18 +4,6 @@ import { useEffect, useRef } from "react";
 import { NEED_INFO, NEEDS, type ActivityDef } from "@/walk/life";
 import type { World } from "@/walk/world/world";
 
-/** What the player is doing while an activity runs, for the bar at the bottom of the screen. */
-const DOING: Record<string, string> = {
-  pray: "Praying in the quiet place",
-  read: "Reading the scroll",
-  listen: "Listening to Jesus",
-  meal: "Sharing the meal",
-  nets: "Washing and mending the nets",
-  water: "Carrying water",
-  shade: "Resting in the shade",
-  sleep: "Sleeping until morning",
-};
-
 /** The need an activity feeds most, for its icon. */
 export function activityIcon(def: ActivityDef): string {
   const need = NEEDS.reduce((best, n) => ((def.needs[n] ?? 0) > (def.needs[best] ?? 0) ? n : best), NEEDS[0]);
@@ -49,18 +37,17 @@ export function ActivityBar({ world, def, onCancel }: { world: World; def: Activ
     return () => cancelAnimationFrame(frame);
   }, [world]);
 
-  const doing = DOING[def.id] ?? def.action;
   return (
-    <div className="pointer-events-auto flex w-[min(22rem,calc(100vw-1.5rem))] items-center gap-3 rounded-2xl border-2 border-amber-200 bg-[#275f6c] px-4 py-2.5 text-white shadow-lg">
+    <div className="pointer-events-auto flex w-[min(21rem,calc(100vw-1.5rem))] items-center gap-3 rounded-2xl border-2 border-amber-200 bg-[#275f6c] px-4 py-2.5 text-white shadow-lg">
       <span aria-hidden className="text-xl">
         {activityIcon(def)}
       </span>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold">{doing}…</p>
+        <p className="truncate text-sm font-semibold">{def.doing}…</p>
         <div
           ref={meter}
           role="progressbar"
-          aria-label={doing}
+          aria-label={def.doing}
           aria-valuemin={0}
           aria-valuemax={100}
           aria-valuenow={0}

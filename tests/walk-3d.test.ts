@@ -1,18 +1,23 @@
+import * as THREE from "three";
 import { describe, expect, it } from "vitest";
+import { getCharacter } from "@/walk/content";
 import { cameraOffset, edgeArrow, fieldOfView, pickNearest, screenToWorld, snapYaw, stepYaw, YAW_STEP, zoomPose } from "@/walk/game3d/camera";
-import { angleDelta } from "@/walk/game3d/crowd";
+import { angleDelta, Crowd } from "@/walk/game3d/crowd";
 import { buildHeights, footprintBase, groundHeight, heightAt, JETTY_DECK, raycastGround, STEP, tileAt, WATER_LEVEL } from "@/walk/game3d/heights";
-import { activityColor } from "@/walk/game3d/markers";
+import { activityAtTap, activityColor, RING_DISTANCE, ringStrength, type Markers } from "@/walk/game3d/markers";
 import { moonDirection, skyAt, sunDirection, withWeather, type RGB } from "@/walk/game3d/palette";
 import { poseJoints, puppetHeight } from "@/walk/game3d/puppet";
 import { paintPixels, TEXTURE_SIZE } from "@/walk/game3d/textures";
 import { buildCapernaum } from "@/walk/world/maps/capernaum";
-import { Tile } from "@/walk/world/types";
+import { Tile, type Vec } from "@/walk/world/types";
+import { PLAYER_SPEED, World, type Interactable } from "@/walk/world/world";
 
 const map = buildCapernaum();
 const field = buildHeights(map);
 const luma = (c: RGB) => c[0] * 0.3 + c[1] * 0.59 + c[2] * 0.11;
 const isLand = (t: Tile) => t !== Tile.Deep && t !== Tile.Shallow && t !== Tile.Jetty;
+const spotOf = (id: string) => map.activitySpots.find((s) => s.id === id)!;
+const tiles = (a: Vec, b: Vec) => Math.hypot(a.x - b.x, a.y - b.y);
 
 describe("terrain heights", () => {
   it("puts the lake below the waterline, the beach just above it, and the town a block up", () => {
@@ -307,6 +312,98 @@ describe("textures and markers", () => {
     for (const id of ["pray", "read", "listen", "meal", "nets", "water", "shade", "sleep"]) {
       expect(activityColor(id)).toBeGreaterThan(0);
       expect(activityColor(id)).toBeLessThanOrEqual(0xffffff);
+    }
+  });
+});
+
+describe("tap-to-do", () => {
+  const read = spotOf("read-spot");
+
+  it("does the activity whose ring a tap lands on or near, with more reach for a finger", () => {
+    const world = new World(map, { minutes: 10 * 60, x: read.x, y: read.y + 5 });
+    expect(activityAtTap(world, { x: read.x + 0.3, y: read.y - 0.2 }, false)?.id).toBe("read-spot");
+    expect(activityAtTap(world, { x: read.x + 1.2, y: read.y + 0.6 }, false)?.id).toBe("read-spot");
+    expect(activityAtTap(world, { x: read.x + 1.7, y: read.y }, false)).toBeUndefined();
+    expect(activityAtTap(world, { x: read.x + 1.7, y: read.y }, true)?.id).toBe("read-spot");
+    expect(activityAtTap(world, { x: read.x + 2.5, y: read.y + 1 }, true)).toBeUndefined();
+  });
+
+  it("only counts rings the player can see: a tap on a far-off spot just walks", () => {
+    expect(ringStrength(0)).toBe(1);
+    expect(ringStrength(RING_DISTANCE)).toBe(0);
+    expect(ringStrength(RING_DISTANCE + 5)).toBe(0);
+    const far = new World(map, { minutes: 10 * 60, x: read.x, y: read.y + RING_DISTANCE + 2 });
+    expect(activityAtTap(far, read, false)).toBeUndefined();
+  });
+
+  it("walks there and does it, or walks there and says why not when it can't be done now", () => {
+    for (const [minutes, closed] of [
+      [10 * 60, false],
+      [22 * 60, true],
+    ] as const) {
+      const world = new World(map, { minutes, x: read.x, y: read.y + 5 });
+      const interactions: Interactable[] = [];
+      world.events.on("interact", (item) => interactions.push(item));
+      world.approach(activityAtTap(world, { x: read.x + 0.8, y: read.y + 0.5 }, true)!.id);
+      for (let i = 0; i < 30 * 8 && interactions.length === 0; i++) world.update(1 / 30);
+      expect(interactions).toHaveLength(1);
+      expect(interactions[0]).toMatchObject({ id: "read-spot", kind: "activity", activity: "read" });
+      expect(Boolean(interactions[0].reason)).toBe(closed);
+      expect(tiles(world.player.pos, read)).toBeLessThanOrEqual(read.radius);
+      if (!closed) expect(world.startActivity("read-spot")).toBe(true);
+    }
+  });
+});
+
+describe("taking a place at an activity", () => {
+  it("walks the player the last steps onto the spot instead of jumping there", () => {
+    const pray = spotOf("pray-spot");
+    // At the edge of the spot's reach: the world sets the player straight down on it when the activity starts.
+    const world = new World(map, { minutes: 10 * 60, x: pray.x + 1.6, y: pray.y + 1.2 });
+    const crowd = new Crowd(world.npcs, world.player, getCharacter("peter")!.appearance, new THREE.MeshBasicMaterial(), field, false);
+    world.events.on("activityStart", () => crowd.walkPlayerOn());
+    const markers = { beginShadows() {}, addShadow() {}, endShadows() {} } as unknown as Markers;
+    const dt = 1 / 60;
+    const frame = () => {
+      world.update(dt);
+      crowd.update(dt, markers);
+    };
+    frame();
+    const drawn = () => ({ x: crowd.player.position.x, y: crowd.player.position.z });
+    const start = drawn();
+
+    expect(world.startActivity("pray-spot")).toBe(true);
+    expect(world.player.pos).toEqual({ x: pray.x, y: pray.y });
+    let frames = 0;
+    let previous = start;
+    while (tiles(drawn(), pray) > 1e-9 && frames < 120) {
+      frame();
+      frames++;
+      const now = drawn();
+      expect(tiles(now, previous)).toBeLessThanOrEqual(PLAYER_SPEED * dt + 1e-9);
+      if (tiles(now, pray) > 1e-9) expect(crowd.player.motion).toBe("walk");
+      previous = now;
+    }
+    // Two tiles at walking pace, then into the activity's pose, facing the way the spot faces.
+    expect(frames).toBeGreaterThan(0.4 / dt);
+    expect(frames).toBeLessThan(0.6 / dt);
+    expect(crowd.player.motion).toBe("kneel");
+    for (let i = 0; i < 30; i++) frame();
+    expect(Math.abs(angleDelta(crowd.player.yaw, Math.PI))).toBeLessThan(0.05);
+  });
+
+  it("puts everyone else straight where the world has them", () => {
+    const world = new World(map, { minutes: 10 * 60 });
+    const crowd = new Crowd(world.npcs, world.player, getCharacter("peter")!.appearance, new THREE.MeshBasicMaterial(), field, false);
+    const markers = { beginShadows() {}, addShadow() {}, endShadows() {} } as unknown as Markers;
+    for (let i = 0; i < 10; i++) {
+      world.update(1 / 30);
+      crowd.update(1 / 30, markers);
+    }
+    for (const actor of crowd.actors) {
+      if (!actor.npc?.visible) continue;
+      expect(actor.position.x).toBe(actor.npc.pos.x);
+      expect(actor.position.z).toBe(actor.npc.pos.y);
     }
   });
 });

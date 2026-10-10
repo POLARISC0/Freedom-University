@@ -9,6 +9,7 @@ export const ACTIVITIES: ActivityDef[] = [
   {
     id: "pray",
     action: "Pray here",
+    doing: "Praying in the quiet place",
     done: "You spent time alone with your Father in the quiet place.",
     pose: "kneel",
     seconds: 6,
@@ -23,6 +24,7 @@ export const ACTIVITIES: ActivityDef[] = [
   {
     id: "read",
     action: "Read the scroll",
+    doing: "Reading the scroll",
     done: "You sat with the scroll at the synagogue and read.",
     pose: "sit",
     seconds: 6,
@@ -36,6 +38,7 @@ export const ACTIVITIES: ActivityDef[] = [
   {
     id: "listen",
     action: "Sit and listen",
+    doing: "Listening to Jesus",
     done: "You sat with the crowd by the sea and listened to Jesus teach.",
     pose: "sit",
     seconds: 8,
@@ -50,6 +53,7 @@ export const ACTIVITIES: ActivityDef[] = [
   {
     id: "meal",
     action: "Join the meal",
+    doing: "Sharing the meal",
     done: "You shared bread and fish around Peter's table.",
     pose: "sit",
     seconds: 8,
@@ -66,6 +70,7 @@ export const ACTIVITIES: ActivityDef[] = [
   {
     id: "nets",
     action: "Help with the nets",
+    doing: "Washing and mending the nets",
     done: "You helped the fishermen wash and mend their nets.",
     pose: "work",
     seconds: 8,
@@ -80,6 +85,7 @@ export const ACTIVITIES: ActivityDef[] = [
   {
     id: "water",
     action: "Carry water",
+    doing: "Carrying water",
     done: "You drew water at the well and carried it to your neighbours' doors.",
     pose: "work",
     seconds: 6,
@@ -96,6 +102,7 @@ export const ACTIVITIES: ActivityDef[] = [
   {
     id: "shade",
     action: "Rest in the shade",
+    doing: "Resting in the shade",
     done: "You sat in the shade of the fig tree and rested.",
     pose: "sit",
     seconds: 6,
@@ -110,6 +117,7 @@ export const ACTIVITIES: ActivityDef[] = [
   {
     id: "sleep",
     action: "Sleep until morning",
+    doing: "Sleeping until morning",
     done: "You slept in peace and woke with the sunrise.",
     pose: "sleep",
     seconds: 8,

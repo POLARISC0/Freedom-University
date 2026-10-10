@@ -10,7 +10,7 @@ import { buildHeights, groundHeight, heightAt, raycastGround } from "./heights";
 import { attachKeyboard } from "./keyboard";
 import { LabelLayer, type LabelInput } from "./labels";
 import { Lighting } from "./lighting";
-import { activityColor, Markers } from "./markers";
+import { activityAtTap, activityColor, Markers, RING_DISTANCE, ringStrength } from "./markers";
 import { Materials, meshesFrom } from "./materials";
 import { buildObjects } from "./objects";
 import { moonDirection, skyAt, sunDirection, withWeather, type RGB } from "./palette";
@@ -43,7 +43,6 @@ function detectQuality() {
 }
 
 const NAME_DISTANCE = 7;
-const RING_DISTANCE = 10;
 const toColor = (c: RGB, out: THREE.Color) => out.setRGB(c[0], c[1], c[2], THREE.SRGBColorSpace);
 
 /**
@@ -114,6 +113,7 @@ export function createGame(parent: HTMLElement, world: World, playerAppearance: 
   scene.add(markers.group);
   const crowd = new Crowd(world.npcs, world.player, playerAppearance, materials.get("cloth"), field, quality.shadows);
   scene.add(crowd.group);
+  const offActivityStart = world.events.on("activityStart", () => crowd.walkPlayerOn());
   const lighting = new Lighting(scene, layers.lights, quality.shadows, quality.shadowMapSize);
 
   const labels = new LabelLayer(parent);
@@ -181,11 +181,18 @@ export function createGame(parent: HTMLElement, world: World, playerAppearance: 
       markers.showTap(hit.feet, 0xffe08a);
       return;
     }
-    // Otherwise walk to the spot on the ground under the tap.
+    // Otherwise walk to the spot on the ground under the tap. On (or by) an activity's ring, walk onto it and do it:
+    // the world says why if it can't be done just now.
     ndc.set((x / width) * 2 - 1, -(y / height) * 2 + 1);
     raycaster.setFromCamera(ndc, camera);
     const point = raycastGround(field, raycaster.ray.origin, raycaster.ray.direction, 600);
     if (!point) return;
+    const spot = activityAtTap(world, { x: point.x, y: point.z }, touch);
+    if (spot) {
+      world.approach(spot.id);
+      markers.showTap(new THREE.Vector3(spot.x, groundHeight(field, spot.x, spot.y), spot.y), activityColor(spot.activity));
+      return;
+    }
     world.walkTo({ x: point.x, y: point.z });
     markers.showTap(new THREE.Vector3(point.x, Math.max(groundHeight(field, point.x, point.z), 0.3), point.z));
   }
@@ -338,7 +345,7 @@ export function createGame(parent: HTMLElement, world: World, playerAppearance: 
       ring.z = spot.y;
       ring.radius = spot.radius;
       ring.color = activityColor(spot.activity);
-      ring.strength = Math.min(1, (RING_DISTANCE - d) / 3);
+      ring.strength = ringStrength(d);
       ringInputs.push(ring);
     }
     markers.setRings(ringInputs, elapsed);
@@ -403,6 +410,7 @@ export function createGame(parent: HTMLElement, world: World, playerAppearance: 
       destroyed = true;
       cancelAnimationFrame(raf);
       document.removeEventListener("visibilitychange", onVisibility);
+      offActivityStart();
       observer.disconnect();
       keyboard.detach();
       detachPointer();

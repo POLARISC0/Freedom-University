@@ -1,5 +1,10 @@
 // A small turntable view of the player's avatar for the character creator: the same voxel figure as in the game,
 // standing on a block of grass, turning slowly. Drag to spin it.
+//
+// Every view draws with one shared offscreen WebGL renderer and copies each frame onto its own 2D canvas. Making a
+// WebGL context and compiling its shaders can hold up the page for seconds on a software GPU while the game is
+// drawing too, so it happens once per page rather than each time the character creator opens: the renderer, its
+// compiled materials and the grass block stay for the next view, and a view only ever frees its own figure.
 
 import * as THREE from "three";
 import type { Appearance } from "@/walk/content";
@@ -12,13 +17,63 @@ export interface AvatarView {
   destroy(): void;
 }
 
-/** Mount the view in `parent`, filling it. Throws if WebGL isn't available. */
-export function createAvatarView(parent: HTMLElement, appearance: Appearance): AvatarView {
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+type MaterialKey = "cloth" | "grass" | "grassSide" | "dirt";
+
+interface Shared {
+  renderer: THREE.WebGLRenderer;
+  materials: Record<MaterialKey, THREE.MeshLambertMaterial>;
+  /** The grass block the avatar stands on, by material. */
+  block: [MaterialKey, THREE.BufferGeometry][];
+}
+
+let shared: Shared | null = null;
+let unavailable: unknown = null;
+
+/** The renderer, materials and grass block every view shares, made on first use. Throws if WebGL isn't available. */
+function sharedRenderer(): Shared {
+  if (shared) return shared;
+  if (unavailable) throw unavailable;
+  let renderer: THREE.WebGLRenderer;
+  try {
+    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  } catch (error) {
+    unavailable = error;
+    throw error;
+  }
+  // Views size their own canvases in device pixels, so the shared buffer is in device pixels too.
+  renderer.setPixelRatio(1);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.NeutralToneMapping;
-  const canvas = renderer.domElement;
+
+  const [cloth, grass, grassSide, dirt] = (["cloth", "grass", "grassSide", "dirt"] as const).map((k) => makeTexture(k));
+  const materials = {
+    cloth: new THREE.MeshLambertMaterial({ map: cloth, vertexColors: true }),
+    grass: new THREE.MeshLambertMaterial({ map: grass, vertexColors: true }),
+    grassSide: new THREE.MeshLambertMaterial({ map: grassSide, vertexColors: true }),
+    dirt: new THREE.MeshLambertMaterial({ map: dirt, vertexColors: true }),
+  };
+
+  // The grass block, with a tuft and a flower.
+  const b = new VoxelBuilder();
+  b.box("grass", [-0.5, 0, -0.5], [0.5, 0, 0.5], 0xffffff, { skip: 59 });
+  b.box("grassSide", [-0.5, -0.5, -0.5], [0.5, 0, 0.5], 0xffffff, { skip: 4, uvOffset: [0, 1] });
+  b.box("dirt", [-0.5, -0.62, -0.5], [0.5, -0.5, 0.5], 0xffffff, { skip: 4 });
+  b.box("cloth", [0.3, 0, 0.28], [0.35, 0.16, 0.33], 0x6f9e44);
+  b.box("cloth", [0.36, 0, 0.3], [0.41, 0.11, 0.35], 0x6f9e44);
+  b.box("cloth", [-0.36, 0, 0.3], [-0.33, 0.14, 0.33], 0x5f8a3b);
+  b.box("cloth", [-0.39, 0.13, 0.27], [-0.3, 0.2, 0.36], 0xe0483e);
+  const block = [...b.build()] as [MaterialKey, THREE.BufferGeometry][];
+
+  shared = { renderer, materials, block };
+  return shared;
+}
+
+/** Mount the view in `parent`, filling it. Throws if WebGL isn't available. */
+export function createAvatarView(parent: HTMLElement, appearance: Appearance): AvatarView {
+  const { renderer, materials, block } = sharedRenderer();
+  const canvas = document.createElement("canvas");
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("No 2D canvas for the avatar view");
   canvas.style.display = "block";
   canvas.style.width = "100%";
   canvas.style.height = "100%";
@@ -33,32 +88,9 @@ export function createAvatarView(parent: HTMLElement, appearance: Appearance): A
   sun.position.set(1.5, 3, 2.5);
   scene.add(sun);
 
-  const textures = (["cloth", "grass", "grassSide", "dirt"] as const).map((k) => makeTexture(k));
-  const [cloth, grass, grassSide, dirt] = textures;
-  const materials = {
-    cloth: new THREE.MeshLambertMaterial({ map: cloth, vertexColors: true }),
-    grass: new THREE.MeshLambertMaterial({ map: grass, vertexColors: true }),
-    grassSide: new THREE.MeshLambertMaterial({ map: grassSide, vertexColors: true }),
-    dirt: new THREE.MeshLambertMaterial({ map: dirt, vertexColors: true }),
-  };
-
-  // The grass block the avatar stands on, with a tuft and a flower.
   const turntable = new THREE.Group();
   scene.add(turntable);
-  const block = new VoxelBuilder();
-  block.box("grass", [-0.5, 0, -0.5], [0.5, 0, 0.5], 0xffffff, { skip: 59 });
-  block.box("grassSide", [-0.5, -0.5, -0.5], [0.5, 0, 0.5], 0xffffff, { skip: 4, uvOffset: [0, 1] });
-  block.box("dirt", [-0.5, -0.62, -0.5], [0.5, -0.5, 0.5], 0xffffff, { skip: 4 });
-  block.box("cloth", [0.3, 0, 0.28], [0.35, 0.16, 0.33], 0x6f9e44);
-  block.box("cloth", [0.36, 0, 0.3], [0.41, 0.11, 0.35], 0x6f9e44);
-  block.box("cloth", [-0.36, 0, 0.3], [-0.33, 0.14, 0.33], 0x5f8a3b);
-  block.box("cloth", [-0.39, 0.13, 0.27], [-0.3, 0.2, 0.36], 0xe0483e);
-  const blockMeshes: THREE.Mesh[] = [];
-  for (const [key, geometry] of block.build()) {
-    const mesh = new THREE.Mesh(geometry, materials[key as keyof typeof materials]);
-    turntable.add(mesh);
-    blockMeshes.push(mesh);
-  }
+  for (const [key, geometry] of block) turntable.add(new THREE.Mesh(geometry, materials[key]));
 
   let figure: { mesh: THREE.SkinnedMesh; bones: THREE.Bone[]; kind: ReturnType<typeof puppetKind> } | null = null;
   const build = (a: Appearance) => {
@@ -84,17 +116,31 @@ export function createAvatarView(parent: HTMLElement, appearance: Appearance): A
   };
   build(appearance);
 
-  // Size to the parent.
+  // Size to the parent, in device pixels.
   const resize = () => {
     const w = parent.clientWidth || 160;
     const h = parent.clientHeight || 160;
-    renderer.setSize(w, h, false);
+    const ratio = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.max(1, Math.round(w * ratio));
+    canvas.height = Math.max(1, Math.round(h * ratio));
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
   };
   resize();
   const observer = new ResizeObserver(resize);
   observer.observe(parent);
+
+  /** Draw into the corner of the shared buffer (growing it if this view is the largest yet), then copy it here. */
+  const draw = () => {
+    const { width, height } = canvas;
+    const source = renderer.domElement;
+    if (source.width < width || source.height < height) renderer.setSize(Math.max(source.width, width), Math.max(source.height, height), false);
+    renderer.setViewport(0, 0, width, height);
+    renderer.render(scene, camera);
+    context.clearRect(0, 0, width, height);
+    // WebGL's viewport starts at the bottom-left of the buffer; the canvas's rows start at the top.
+    context.drawImage(source, 0, source.height - height, width, height, 0, 0, width, height);
+  };
 
   // Drag to spin; it carries on turning gently by itself a moment after you let go.
   let yaw = -0.5;
@@ -148,7 +194,7 @@ export function createAvatarView(parent: HTMLElement, appearance: Appearance): A
     }
     turntable.rotation.y = yaw;
     if (figure) applyPose(figure.bones, figure.kind, "stand", "stand", 1, t, 0, 0.7);
-    renderer.render(scene, camera);
+    draw();
   };
   raf = requestAnimationFrame(frame);
 
@@ -162,15 +208,13 @@ export function createAvatarView(parent: HTMLElement, appearance: Appearance): A
       canvas.removeEventListener("pointermove", move);
       canvas.removeEventListener("pointerup", up);
       canvas.removeEventListener("pointercancel", up);
+      // Only this view's figure: the renderer, materials and grass block are kept for the next view.
       if (figure) {
         figure.mesh.geometry.dispose();
         figure.mesh.skeleton.dispose();
+        figure = null;
       }
-      for (const m of blockMeshes) m.geometry.dispose();
-      for (const m of Object.values(materials)) m.dispose();
-      for (const tex of textures) tex.dispose();
-      renderer.dispose();
-      renderer.forceContextLoss();
+      scene.clear();
       canvas.remove();
     },
   };

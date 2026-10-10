@@ -13,6 +13,7 @@ import { getLesson } from "@/walk/content";
 import type { LifeState } from "@/walk/life";
 import { canMoveTo, type CheckInView, type JournalEntryView, type LessonProgressView } from "@/walk/progress";
 import { change, current, newId, persist } from "./session";
+import { CHECK_INS_KEPT } from "./store";
 
 // The static preview's stand-in for `@/app/walk/actions`: the same functions with the same rules, run in the
 // browser against the preview session instead of the database. The build swaps this module in for the real one.
@@ -21,13 +22,11 @@ export type ActionResult<T> = { ok: true; data: T } | { ok: false; error: string
 
 const fail = (error: string) => ({ ok: false as const, error });
 
-/** Keep only the newest check-ins: a few months is plenty for the journal and keeps the saved document small. */
-const CHECK_INS_KEPT = 120;
+// Each action saves only the record it changed, so another tab or device can't lose what it saved meanwhile.
 
 function saveLesson(view: LessonProgressView): LessonProgressView {
-  const progress = { ...current().progress, [view.lessonSlug]: view };
-  change({ progress });
-  persist((s) => s.saveProgress(progress));
+  change({ progress: { ...current().progress, [view.lessonSlug]: view } });
+  persist((s) => s.saveLesson(view));
   return view;
 }
 
@@ -89,9 +88,10 @@ export async function submitReflection(
   const row = current().progress[lessonSlug];
   if (!row || row.stepIndex !== stepIndex) return fail(ACTION_MESSAGES.continueLesson);
 
-  const progress = saveLesson({ ...row, stepIndex: stepIndex + 1 });
+  // The reflection is saved before the step moves on: if the page closes in between, the words aren't lost.
   const body = text.trim();
   const entry = body ? addEntry({ kind: "reflection", title: step.question, body, lessonSlug }) : null;
+  const progress = saveLesson({ ...row, stepIndex: stepIndex + 1 });
   return { ok: true, data: { progress, entry } };
 }
 
@@ -153,13 +153,15 @@ export async function saveCheckIn(
   if (!isPlausibleDay(day)) return fail(ACTION_MESSAGES.wrongDate);
 
   const checkIn: CheckInView = { day, mood, note: note || null };
-  const checkIns = [checkIn, ...current().checkIns.filter((c) => c.day !== day)]
-    .sort((a, b) => b.day.localeCompare(a.day))
-    .slice(0, CHECK_INS_KEPT);
-  change({ checkIns });
-  persist((s) => s.saveCheckIns(checkIns));
   const entry =
     addToJournal && note ? addEntry({ kind: "prayer", title: `Check-in, ${day}`, body: note, lessonSlug: null }) : null;
+  const checkIns = [checkIn, ...current().checkIns.filter((c) => c.day !== day)].sort((a, b) =>
+    b.day.localeCompare(a.day),
+  );
+  change({ checkIns: checkIns.slice(0, CHECK_INS_KEPT) });
+  persist((s) => s.saveCheckIn(checkIn));
+  // Only the newest few months are kept: older days leave storage too.
+  for (const old of checkIns.slice(CHECK_INS_KEPT)) persist((s) => s.deleteCheckIn(old.day));
   return { ok: true, data: { checkIn, entry } };
 }
 

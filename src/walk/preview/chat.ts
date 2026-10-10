@@ -5,7 +5,7 @@ import { friendship, relationshipLevel } from "@/walk/life";
 import { detectConcerns } from "@/walk/safety/concern";
 import { isCapabilityError, getCapability, type Sample, type SampleTurn } from "./capabilities";
 import { activeStore, current, newId, persist } from "./session";
-import type { ChatMessage } from "./store";
+import { THREAD_KEPT, type ChatMessage } from "./store";
 
 // The static preview's stand-in for `/api/walk/chat`. ChatPanel talks to that route with fetch, so the preview
 // answers those requests in the page: the same thread rules, the same character prompts and crisis notes, with
@@ -13,9 +13,8 @@ import type { ChatMessage } from "./store";
 // prompt there, so the character prompt leads the conversation as an opening instruction turn.
 
 const ROUTE = "/api/walk/chat";
-/** Messages shown when a conversation is reopened, and kept per thread. */
+/** Messages shown when a conversation is reopened. */
 const SHOWN = 40;
-const KEPT = 60;
 
 const UNAVAILABLE =
   "Conversations with the characters need Claude, which this copy of the page can't reach. Open it on claude.ai, signed in, to talk with them. Everything else in the game works here.";
@@ -26,6 +25,7 @@ const DISABLED =
 const INTERRUPTED = "The conversation was interrupted. Try again in a moment.";
 const RATE_LIMITED = "You've reached your Claude usage limit for now. Take a break, open your Bible, and come back later.";
 const SIGNED_OUT = "Sign in to claude.ai again to keep talking.";
+const LOAD_FAILED = "Your conversation couldn't be loaded just now. Try again in a moment.";
 
 /** Errors that mean Claude can't be used in this view at all: conversations are hidden for the rest of it. */
 const HIDING = new Map([
@@ -54,10 +54,11 @@ function abortError() {
   return new DOMException("The operation was aborted.", "AbortError");
 }
 
+/** A conversation as stored. A read that fails rejects and isn't kept, so the next request reads it again. */
 async function loadThread(key: string): Promise<ChatMessage[]> {
   const cached = threads.get(key);
   if (cached) return cached;
-  const messages = (await activeStore()?.loadThread(key).catch(() => [])) ?? [];
+  const messages = (await activeStore()?.loadThread(key)) ?? [];
   threads.set(key, messages);
   return messages;
 }
@@ -67,7 +68,7 @@ function saveExchange(key: string, message: string, reply: string) {
     ...(threads.get(key) ?? []),
     { id: newId(), role: "user" as const, content: message },
     { id: newId(), role: "assistant" as const, content: reply },
-  ].slice(-KEPT);
+  ].slice(-THREAD_KEPT);
   threads.set(key, messages);
   persist((s) => s.saveThread(key, messages));
 }
@@ -75,9 +76,20 @@ function saveExchange(key: string, message: string, reply: string) {
 async function handleGet(params: URLSearchParams): Promise<Response> {
   const resolved = resolveThread(params.get("characterId") ?? "", params.get("lessonSlug") || undefined);
   if ("error" in resolved) return json({ error: resolved.error }, 404);
-  const [messages, sample] = await Promise.all([loadThread(`${resolved.character.id}:${resolved.thread}`), getSample()]);
+  const [messages, sample] = await Promise.all([
+    loadThread(`${resolved.character.id}:${resolved.thread}`).catch(() => null),
+    getSample(),
+  ]);
   const note = sample ? unavailable : UNAVAILABLE;
-  return json({ messages: messages.slice(-SHOWN), aiConfigured: !note, ...(note ? { aiNote: note } : {}) });
+  return json(
+    {
+      messages: messages?.slice(-SHOWN) ?? [],
+      aiConfigured: !note,
+      ...(note ? { aiNote: note } : {}),
+      ...(messages ? {} : { error: LOAD_FAILED }),
+    },
+    messages ? 200 : 502,
+  );
 }
 
 async function handlePost(rawBody: unknown, signal: AbortSignal | undefined): Promise<Response> {
@@ -100,9 +112,14 @@ async function handlePost(rawBody: unknown, signal: AbortSignal | undefined): Pr
   if (!sample || unavailable) return json({ error: unavailable ?? UNAVAILABLE }, 503);
 
   const key = `${character.id}:${thread}`;
-  const history: SampleTurn[] = (await loadThread(key))
-    .slice(-HISTORY_LIMIT)
-    .map((m) => ({ role: m.role, content: m.content }));
+  let stored: ChatMessage[];
+  try {
+    stored = await loadThread(key);
+  } catch {
+    // Without the conversation so far, the character would answer as a stranger.
+    return json({ error: LOAD_FAILED }, 502);
+  }
+  const history: SampleTurn[] = stored.slice(-HISTORY_LIMIT).map((m) => ({ role: m.role, content: m.content }));
   while (history[0]?.role === "assistant") history.shift();
 
   const { progress, life } = current();

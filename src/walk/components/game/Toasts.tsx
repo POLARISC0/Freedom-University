@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { getCharacter } from "@/walk/content";
 import { NEED_INFO, NEEDS, type ActivityDef, type BadgeDef } from "@/walk/life";
 import { RefLink } from "../Scripture";
@@ -19,6 +19,8 @@ interface Toast {
 }
 
 const SHOWN = 3;
+/** On a short screen the larger toasts would reach the HUD at the top, so they take turns there. */
+const SHORT_SCREEN = "(max-height: 719px)";
 const DURATION: Record<ToastBody["kind"], number> = { text: 3200, activity: 9000, badge: 7000 };
 
 export function useToasts() {
@@ -54,10 +56,42 @@ export function namesList(names: string[]): string {
   return names.length <= 1 ? (names[0] ?? "") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
 }
 
-export function ToastStack({ toasts, onDismiss, className = "" }: { toasts: Toast[]; onDismiss: (id: number) => void; className?: string }) {
+function useShortScreen(): boolean {
+  return useSyncExternalStore(
+    (onChange) => {
+      const query = window.matchMedia(SHORT_SCREEN);
+      query.addEventListener("change", onChange);
+      return () => query.removeEventListener("change", onChange);
+    },
+    () => window.matchMedia(SHORT_SCREEN).matches,
+    () => false,
+  );
+}
+
+/**
+ * The newest `max` toasts (one at a time on a short screen); the rest wait their turn, and each one's time starts
+ * when it is shown. With `linesOnly`, the larger toasts (an activity's result, a badge) wait too.
+ */
+export function ToastStack({
+  toasts,
+  onDismiss,
+  max = SHOWN,
+  linesOnly = false,
+  className = "",
+  style,
+}: {
+  toasts: Toast[];
+  onDismiss: (id: number) => void;
+  max?: number;
+  linesOnly?: boolean;
+  className?: string;
+  style?: React.CSSProperties;
+}) {
+  const shown = useShortScreen() ? 1 : max;
+  const ready = linesOnly ? toasts.filter((t) => t.body.kind === "text") : toasts;
   return (
-    <div role="status" aria-live="polite" className={`pointer-events-none flex flex-col items-center gap-2 px-3 ${className}`}>
-      {toasts.map((t) => (
+    <div role="status" aria-live="polite" style={style} className={`pointer-events-none flex flex-col items-center gap-2 px-3 ${className}`}>
+      {ready.slice(-shown).map((t) => (
         <ToastView key={t.id} id={t.id} body={t.body} onDismiss={onDismiss} />
       ))}
     </div>
