@@ -79,6 +79,12 @@ function buildRef(groups: (string | undefined)[]): ScriptureRef | null {
   const [name, ch, v, end1, end2, chapterRangeEnd] = groups;
   const book = NAME_LOOKUP.get(lookupKey(name ?? ""));
   if (!book) return null;
+  // Books with one chapter (Obadiah, Philemon, 2 and 3 John, Jude) are cited by verse alone: "Jude 24-25".
+  if (book.verses.length === 1 && v === undefined) {
+    const ref: ScriptureRef = { book: book.name, chapter: 1, verse: Number(ch) };
+    if (chapterRangeEnd !== undefined) ref.verseEnd = Number(chapterRangeEnd);
+    return ref;
+  }
   const ref: ScriptureRef = { book: book.name, chapter: Number(ch) };
   if (v !== undefined) {
     ref.verse = Number(v);

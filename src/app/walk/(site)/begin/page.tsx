@@ -2,16 +2,14 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { LoginForm } from "@/components/LoginForm";
 import { getCurrentUser } from "@/lib/auth";
+import { safeRedirectPath } from "@/lib/redirect";
 import { WalkMark } from "@/walk/components/WalkHeader";
 
 export const metadata: Metadata = { title: "Begin your walk" };
 
-function safeNext(next: unknown): string {
-  return typeof next === "string" && next.startsWith("/") && !next.startsWith("//") ? next : "/walk/play";
-}
 
 export default async function BeginPage({ searchParams }: PageProps<"/walk/begin">) {
-  const nextPath = safeNext((await searchParams).next);
+  const nextPath = safeRedirectPath((await searchParams).next, "/walk/play");
   if (await getCurrentUser()) redirect(nextPath);
   return (
     <div className="mx-auto max-w-sm space-y-6 pt-6">

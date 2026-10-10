@@ -15,6 +15,7 @@ import { HelpCard } from "../HelpCard";
 import { JournalView } from "../JournalView";
 import { LessonPlayer } from "../LessonPlayer";
 import { PathsView } from "../PathsView";
+import { safely } from "../safe-action";
 import { CharacterPanel } from "./CharacterPanel";
 import { PlacesPanel } from "./PlacesPanel";
 import { DEFAULT_APPEARANCE, WelcomePanel } from "./WelcomePanel";
@@ -120,8 +121,10 @@ export function GameShell({
     if (!lesson) return;
     const step = progress[lesson.slug].stepIndex;
     startTransition(async () => {
-      const result = await advanceLesson({ lessonSlug: lesson.slug, toStep: step + 1 });
-      if (!result.ok) return showToast(result.error);
+      const result = await safely(() => advanceLesson({ lessonSlug: lesson.slug, toStep: step + 1 }));
+      if (!result.ok) return showToast(`${result.error} Step away and back to try again.`);
+      // Bring the mentor to where the scene needs them before the panel opens.
+      world?.setStory(storyState({ ...progress, [lesson.slug]: result.data }, lesson.slug));
       world?.settle(lesson.mentorId);
       updateProgress(result.data);
       openLesson(lesson.slug);

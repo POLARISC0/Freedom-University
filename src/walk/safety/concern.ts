@@ -60,5 +60,7 @@ const PATTERNS: Record<ConcernKind, RegExp[]> = {
 };
 
 export function detectConcerns(text: string): ConcernKind[] {
-  return (Object.keys(PATTERNS) as ConcernKind[]).filter((kind) => PATTERNS[kind].some((re) => re.test(text)));
+  // Phones type curly apostrophes ("don’t"); the patterns are written with straight ones.
+  const normalized = text.replace(/[‘’ʼ`]/g, "'");
+  return (Object.keys(PATTERNS) as ConcernKind[]).filter((kind) => PATTERNS[kind].some((re) => re.test(normalized)));
 }

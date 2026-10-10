@@ -9,6 +9,7 @@ import { detectConcerns } from "@/walk/safety/concern";
 import type { ConcernKind } from "@/walk/safety/resources";
 import { ChatPanel } from "./ChatPanel";
 import { HelpCard } from "./HelpCard";
+import { safely } from "./safe-action";
 import { Portrait } from "./Portrait";
 import { PassageBlock, RefChips, TextWithRefs } from "./Scripture";
 
@@ -50,7 +51,7 @@ export function LessonPlayer(props: LessonPlayerProps) {
   function run<T>(action: () => Promise<{ ok: true; data: T } | { ok: false; error: string }>, done: (data: T) => void) {
     setError(null);
     startTransition(async () => {
-      const result = await action();
+      const result = await safely(action);
       if (result.ok) done(result.data);
       else setError(result.error);
     });

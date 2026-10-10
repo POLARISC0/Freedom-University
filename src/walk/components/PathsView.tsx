@@ -6,6 +6,7 @@ import { setChallengeDone } from "@/app/walk/actions";
 import { getCharacter, getLesson, PATHS } from "@/walk/content";
 import { encouragement, lessonStatus, type LessonProgressView, type ProgressMap } from "@/walk/progress";
 import { Portrait } from "./Portrait";
+import { safely } from "./safe-action";
 import { PassageBlock, RefChips } from "./Scripture";
 
 /**
@@ -126,7 +127,7 @@ function LessonRow({
             onChange={(e) => {
               const done = e.target.checked;
               startTransition(async () => {
-                const result = await setChallengeDone(slug, done);
+                const result = await safely(() => setChallengeDone(slug, done));
                 if (result.ok) onProgress(result.data);
               });
             }}

@@ -1,14 +1,15 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
+import { safeRedirectPath } from "@/lib/redirect";
 import { LoginForm } from "@/components/LoginForm";
 
 export const metadata: Metadata = { title: "Sign in" };
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const { next } = await searchParams;
-  const nextPath = typeof next === "string" ? next : "/dashboard";
-  if (await getCurrentUser()) redirect(nextPath.startsWith("/") && !nextPath.startsWith("//") ? nextPath : "/dashboard");
+  const nextPath = safeRedirectPath(next, "/dashboard");
+  if (await getCurrentUser()) redirect(nextPath);
 
   return (
     <div className="mx-auto max-w-sm space-y-6 pt-10">

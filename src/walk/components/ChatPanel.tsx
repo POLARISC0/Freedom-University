@@ -99,9 +99,8 @@ export function ChatPanel({
         setMessages((prev) => prev.map((m) => (m.id === replyId ? { ...m, content: m.content + chunk } : m)));
       }
     } catch (err) {
-      if (controller.signal.aborted) return;
-      setError(err instanceof Error ? err.message : "Something went wrong.");
       setMessages((prev) => prev.filter((m) => !(m.id === replyId && m.content === "")));
+      if (!controller.signal.aborted) setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
       setStreaming(false);
       abortRef.current = null;

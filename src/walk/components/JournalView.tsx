@@ -7,6 +7,7 @@ import { JOURNAL_KIND_LABELS, JOURNAL_KINDS, type JournalEntryView, type Journal
 import { detectConcerns } from "@/walk/safety/concern";
 import type { ConcernKind } from "@/walk/safety/resources";
 import { HelpCard } from "./HelpCard";
+import { safely } from "./safe-action";
 
 const KIND_ICONS: Record<JournalKind, string> = { reflection: "✍️", prayer: "🙏", gratitude: "🌿", note: "📝" };
 
@@ -27,10 +28,11 @@ export function JournalView({
   onEntriesChange,
 }: {
   entries: JournalEntryView[];
-  onEntriesChange: (entries: JournalEntryView[]) => void;
+  onEntriesChange: React.Dispatch<React.SetStateAction<JournalEntryView[]>>;
 }) {
   const [filter, setFilter] = useState<JournalKind | "all">("all");
   const [editing, setEditing] = useState<JournalEntryView | null>(null);
+  const [care, setCare] = useState<ConcernKind[]>([]);
   const shown = filter === "all" ? entries : entries.filter((e) => e.kind === filter);
 
   return (
@@ -39,11 +41,14 @@ export function JournalView({
         key={editing?.id ?? "new"}
         editing={editing}
         onSaved={(entry) => {
-          onEntriesChange(editing ? entries.map((e) => (e.id === entry.id ? entry : e)) : [entry, ...entries]);
+          const edited = Boolean(editing);
+          onEntriesChange((list) => (edited ? list.map((e) => (e.id === entry.id ? entry : e)) : [entry, ...list]));
+          setCare(detectConcerns(`${entry.title ?? ""}\n${entry.body}`));
           setEditing(null);
         }}
         onCancel={() => setEditing(null)}
       />
+      {care.length > 0 && <HelpCard concerns={care} compact />}
 
       <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter entries">
         {(["all", ...JOURNAL_KINDS] as const).map((k) => (
@@ -73,7 +78,7 @@ export function JournalView({
               key={e.id}
               entry={e}
               onEdit={() => setEditing(e)}
-              onDeleted={() => onEntriesChange(entries.filter((x) => x.id !== e.id))}
+              onDeleted={() => onEntriesChange((list) => list.filter((x) => x.id !== e.id))}
             />
           ))}
         </ul>
@@ -95,7 +100,6 @@ function Composer({
   const [title, setTitle] = useState(editing?.title ?? "");
   const [body, setBody] = useState(editing?.body ?? "");
   const [error, setError] = useState<string | null>(null);
-  const [care, setCare] = useState<ConcernKind[]>([]);
   const [pending, startTransition] = useTransition();
 
   return (
@@ -105,9 +109,8 @@ function Composer({
         e.preventDefault();
         setError(null);
         startTransition(async () => {
-          const result = await saveJournalEntry({ id: editing?.id, kind, title, body });
+          const result = await safely(() => saveJournalEntry({ id: editing?.id, kind, title, body }));
           if (!result.ok) return setError(result.error);
-          setCare(detectConcerns(`${title}\n${body}`));
           setTitle("");
           setBody("");
           onSaved(result.data);
@@ -158,7 +161,6 @@ function Composer({
         )}
         <span className="text-xs text-muted">🔒 Private: only you can read your journal.</span>
       </div>
-      {care.length > 0 && <HelpCard concerns={care} compact />}
     </form>
   );
 }
@@ -187,7 +189,7 @@ function EntryCard({ entry, onEdit, onDeleted }: { entry: JournalEntryView; onEd
                 disabled={pending}
                 onClick={() =>
                   startTransition(async () => {
-                    const result = await deleteJournalEntry(entry.id);
+                    const result = await safely(() => deleteJournalEntry(entry.id));
                     if (result.ok) onDeleted();
                   })
                 }

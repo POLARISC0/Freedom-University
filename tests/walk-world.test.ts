@@ -136,6 +136,28 @@ describe("story", () => {
     expect(Math.hypot(peter.pos.x - fire.x, peter.pos.y - fire.y)).toBeLessThan(2);
   });
 
+  it("brings Matthew to the well as soon as the story needs him there", () => {
+    const world = new World(map);
+    world.setStory({ mentorSpots: { matthew: "well" }, quest: null, mentorsWithLessons: [] });
+    world.settle("matthew");
+    const matthew = world.npc("matthew")!;
+    expect(Math.hypot(matthew.pos.x - map.spots.well.x, matthew.pos.y - map.spots.well.y)).toBeLessThan(2);
+  });
+
+  it("re-arms a quest target after the player steps away", () => {
+    const world = new World(map);
+    const arrived: string[] = [];
+    world.events.on("arrive", (id) => arrived.push(id));
+    world.setStory({ mentorSpots: {}, quest: { lessonSlug: "x", target: "well", objective: "" }, mentorsWithLessons: [] });
+    world.player.pos = { ...map.spots.well };
+    world.update(1 / 30);
+    world.player.pos = { x: map.spots.well.x, y: map.spots.well.y + 5 };
+    world.update(1 / 30);
+    world.player.pos = { ...map.spots.well };
+    world.update(1 / 30);
+    expect(arrived).toEqual(["well", "well"]);
+  });
+
   it("raises an arrive event when the player reaches the quest target", () => {
     const world = new World(map);
     const arrived: string[] = [];

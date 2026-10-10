@@ -163,12 +163,20 @@ export class World {
    */
   settle(id: string) {
     const npc = this.npc(id);
-    if (!npc || !npc.goal) return;
-    if (this.distance(npc.pos, npc.anchor) > 5) {
-      npc.pos = { ...npc.anchor };
-      npc.path = [];
-      npc.visible = true;
-    }
+    if (!npc) return;
+    const plan = this.planFor(npc);
+    if (!plan.spot) return;
+    const target = this.standPoint(plan.spot, plan.offsetForMentor);
+    if (this.distance(npc.pos, target) <= 5) return;
+    Object.assign(npc, {
+      pos: { ...target },
+      anchor: target,
+      path: [],
+      visible: true,
+      goal: plan.spot,
+      wanderRadius: plan.wander,
+      face: plan.face,
+    });
   }
 
   /** The character the player is talking to stops and faces them. */
@@ -442,6 +450,11 @@ export class World {
     }
 
     const quest = this.story.quest;
+    // Leaving the spot re-arms it, so a failed save can be retried by stepping away and back.
+    if (this.arrivedAt) {
+      const spot = this.map.spots[this.arrivedAt];
+      if (!spot || this.distance(p, spot) > ARRIVE_RADIUS + 1) this.arrivedAt = null;
+    }
     if (quest && this.arrivedAt !== quest.target) {
       const spot = this.map.spots[quest.target];
       if (spot && this.distance(p, spot) <= ARRIVE_RADIUS) {

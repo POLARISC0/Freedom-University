@@ -24,19 +24,33 @@ export type SignInResult = { ok: true } | { ok: false; error: string };
  * Sign in with a username and password. New usernames create an account with that password. Accounts created
  * before passwords existed have no hash yet: the first password used to sign in to one becomes its password.
  */
-export async function signInWithPassword(username: string, password: string): Promise<SignInResult> {
+export async function signInWithPassword(
+  username: string,
+  password: string,
+  /** Called before creating a new account; return false to refuse (rate limiting). */
+  allowSignUp: () => boolean = () => true,
+): Promise<SignInResult> {
   const existing = await db.user.findUnique({ where: { username } });
   let userId: string;
   if (!existing) {
-    const created = await db.user.create({ data: { username, passwordHash: await hashPassword(password) } });
-    userId = created.id;
+    if (!allowSignUp()) return { ok: false, error: "Too many new accounts from here. Please try again later." };
+    try {
+      const created = await db.user.create({ data: { username, passwordHash: await hashPassword(password) } });
+      userId = created.id;
+    } catch {
+      // Someone else took the username a moment ago.
+      return { ok: false, error: "That username was just taken. Please try again." };
+    }
   } else if (existing.passwordHash) {
     if (!(await verifyPassword(password, existing.passwordHash))) {
       return { ok: false, error: "That username and password don't match." };
     }
     userId = existing.id;
   } else {
+    // An account from before passwords: this password becomes its password, and every session started without
+    // one is signed out, so nobody who used the old username-only login keeps access.
     await db.user.update({ where: { id: existing.id }, data: { passwordHash: await hashPassword(password) } });
+    await db.session.deleteMany({ where: { userId: existing.id } });
     userId = existing.id;
   }
   await startSession(userId);

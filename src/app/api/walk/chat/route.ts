@@ -61,22 +61,25 @@ export async function POST(request: Request) {
   if ("error" in resolved) return Response.json({ error: resolved.error }, { status: 404 });
   const { character, lesson, thread } = resolved;
 
-  const lastHour = await db.walkMessage.count({
-    where: { userId: user.id, role: "user", createdAt: { gt: new Date(Date.now() - 60 * 60 * 1000) } },
-  });
-  if (lastHour >= MESSAGES_PER_HOUR) {
-    return Response.json(
-      { error: "You've had a lot of conversations this hour. Take a break, open your Bible, and come back soon." },
-      { status: 429 },
-    );
-  }
-
   const recent = await getConversation(user.id, character.id, thread, HISTORY_LIMIT);
   const history: Anthropic.Beta.BetaMessageParam[] = recent.map((m) => ({ role: m.role, content: m.content }));
   // The conversation sent to the API must open with a user turn.
   while (history[0]?.role === "assistant") history.shift();
 
-  await db.walkMessage.create({ data: { userId: user.id, characterId: character.id, thread, role: "user", content: message } });
+  // Record the message before counting, so parallel requests can't all slip under the hourly limit.
+  const saved = await db.walkMessage.create({
+    data: { userId: user.id, characterId: character.id, thread, role: "user", content: message },
+  });
+  const lastHour = await db.walkMessage.count({
+    where: { userId: user.id, role: "user", createdAt: { gt: new Date(Date.now() - 60 * 60 * 1000) } },
+  });
+  if (lastHour > MESSAGES_PER_HOUR) {
+    await db.walkMessage.delete({ where: { id: saved.id } });
+    return Response.json(
+      { error: "You've had a lot of conversations this hour. Take a break, open your Bible, and come back soon." },
+      { status: 429 },
+    );
+  }
 
   const completed = await db.walkLessonProgress.findMany({
     where: { userId: user.id, status: "COMPLETED" },

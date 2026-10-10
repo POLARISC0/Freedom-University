@@ -23,9 +23,16 @@ describe("Scripture references", () => {
     expect(parseReference("First John 4:8")).toEqual({ book: "1 John", chapter: 4, verse: 8 });
   });
 
+  it("reads one-chapter books by verse", () => {
+    expect(parseReference("Jude 24-25")).toEqual({ book: "Jude", chapter: 1, verse: 24, verseEnd: 25 });
+    expect(isValidReference(parseReference("Philemon 6")!)).toBe(true);
+    expect(isValidReference(parseReference("3 John 4")!)).toBe(true);
+    expect(formatReference(parseReference("Jude 24")!)).toBe("Jude 1:24");
+  });
+
   it("rejects references that don't exist", () => {
     expect(isValidReference(parseReference("John 22:1")!)).toBe(false);
-    expect(isValidReference(parseReference("Jude 2")!)).toBe(false);
+    expect(isValidReference(parseReference("Jude 26")!)).toBe(false);
     expect(isValidReference(parseReference("Psalm 119:176")!)).toBe(true);
     expect(isValidReference(parseReference("Psalm 119:177")!)).toBe(false);
     expect(parseReference("Hezekiah 3:16")).toBeNull();
@@ -64,6 +71,13 @@ describe("care for players in crisis", () => {
   ])("notices %j", (text, kind) => {
     expect(detectConcerns(text)).toContain(kind);
   });
+
+  it.each(["I don’t want to live anymore", "I can’t go on", "I’m going to kill him"])(
+    "notices %j typed with curly apostrophes",
+    (text) => {
+      expect(detectConcerns(text).length).toBeGreaterThan(0);
+    },
+  );
 
   it.each([
     "They plotted to kill him, but Jesus slipped away.",

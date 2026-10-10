@@ -86,15 +86,19 @@ export async function submitReflection(
   const row = await loadProgressRow(user.id, lessonSlug);
   if (!row || row.stepIndex !== stepIndex) return fail("Please continue the lesson from where you are.");
 
+  // Only the request that actually moves the lesson on writes the entry, so two tabs can't save it twice.
+  const moved = await db.walkLessonProgress.updateMany({
+    where: { id: row.id, stepIndex },
+    data: { stepIndex: stepIndex + 1 },
+  });
+  if (moved.count === 0) return fail("Please continue the lesson from where you are.");
   const body = text.trim();
-  const { entry, progress } = await db.$transaction(async (tx) => ({
-    entry: body
-      ? await tx.walkJournalEntry.create({
-          data: { userId: user.id, kind: "reflection", title: step.question, body, lessonSlug },
-        })
-      : null,
-    progress: await tx.walkLessonProgress.update({ where: { id: row.id }, data: { stepIndex: stepIndex + 1 } }),
-  }));
+  const entry = body
+    ? await db.walkJournalEntry.create({
+        data: { userId: user.id, kind: "reflection", title: step.question, body, lessonSlug },
+      })
+    : null;
+  const progress = await db.walkLessonProgress.findUniqueOrThrow({ where: { id: row.id } });
   return { ok: true, data: { progress: toProgressView(progress), entry: entry ? toJournalView(entry) : null } };
 }
 

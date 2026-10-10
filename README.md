@@ -93,10 +93,11 @@ src/
 
 ## Known limitations
 
-- **Passwords, but no recovery.** Sign-in takes a username and password (scrypt-hashed). There is no password reset,
-  email verification or rate limiting on sign-in attempts yet. Accounts created before passwords were added have no
-  hash: the first password used to sign in to one becomes its password. Add rate limiting (or OAuth) before
-  deploying publicly.
+- **Passwords, but no recovery.** Sign-in takes a username and password (scrypt-hashed), with a cool-down after
+  repeated failures and a cap on new accounts per address. Those limits live in server memory
+  (`src/lib/rate-limit.ts`), so they suit a single instance; use a shared store if you run several. There is no
+  password reset or email verification yet. Accounts created before passwords were added have no hash: the first
+  password used to sign in to one becomes its password, and all of that account's older sessions are signed out.
 - The curriculum states facts as of late 2025 (e.g. the GENIUS Act, SEC v. Ripple, Form 1099-DA). Review the
   modules periodically as laws and markets change.
 - The GNews integration follows GNews's documented v4 API but was built without live access to it. Run one

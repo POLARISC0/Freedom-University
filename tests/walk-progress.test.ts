@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { hashPassword, verifyPassword } from "@/lib/password";
 import { isAcceptablePassword } from "@/lib/password-rules";
+import { hit, isLimited } from "@/lib/rate-limit";
+import { safeRedirectPath } from "@/lib/redirect";
 import { getLesson, LESSONS, PATHS } from "@/walk/content";
 import { canMoveTo, encouragement, summarizePaths, type ProgressMap } from "@/walk/progress";
 
@@ -72,5 +74,29 @@ describe("passwords", () => {
   it("requires at least 8 characters", () => {
     expect(isAcceptablePassword("short")).toBe(false);
     expect(isAcceptablePassword("long enough")).toBe(true);
+  });
+});
+
+describe("redirects after sign-in", () => {
+  it.each([
+    ["/walk/play", "/walk/play"],
+    ["/walk/lessons/out-of-the-boat?x=1", "/walk/lessons/out-of-the-boat?x=1"],
+    ["//evil.com", "/home"],
+    ["/\\evil.com", "/home"],
+    ["https://evil.com", "/home"],
+    [undefined, "/home"],
+  ])("%j -> %j", (next, expected) => {
+    expect(safeRedirectPath(next, "/home")).toBe(expected);
+  });
+});
+
+describe("rate limiting", () => {
+  it("allows up to the limit within the window", () => {
+    const key = `test:${Math.random()}`;
+    expect(hit(key, 2, 1000, 0)).toBe(true);
+    expect(hit(key, 2, 1000, 10)).toBe(true);
+    expect(isLimited(key, 2, 1000, 20)).toBe(true);
+    expect(hit(key, 2, 1000, 20)).toBe(false);
+    expect(isLimited(key, 2, 1000, 5000)).toBe(false);
   });
 });

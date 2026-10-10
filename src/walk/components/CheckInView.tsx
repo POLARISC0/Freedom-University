@@ -5,7 +5,10 @@ import { saveCheckIn } from "@/app/walk/actions";
 import { verseForDay } from "@/walk/content";
 import { MOOD_VERSES } from "@/walk/content/checkin";
 import { MOODS, type CheckInView as CheckIn, type JournalEntryView, type Mood } from "@/walk/progress";
+import { detectConcerns } from "@/walk/safety/concern";
+import type { ConcernKind } from "@/walk/safety/resources";
 import { HelpCard } from "./HelpCard";
+import { safely } from "./safe-action";
 import { PassageBlock } from "./Scripture";
 
 /** The player's own calendar date, YYYY-MM-DD. */
@@ -42,6 +45,7 @@ export function CheckInView({
   const [addToJournal, setAddToJournal] = useState(true);
   const [saved, setSaved] = useState<Mood | null>(existing?.mood ?? null);
   const [error, setError] = useState<string | null>(null);
+  const [care, setCare] = useState<ConcernKind[]>([]);
   const [pending, startTransition] = useTransition();
   const thisMonth = checkIns.filter((c) => c.day.slice(0, 7) === today.slice(0, 7)).length;
 
@@ -59,8 +63,11 @@ export function CheckInView({
           if (!mood) return;
           setError(null);
           startTransition(async () => {
-            const result = await saveCheckIn({ day: today, mood, note, addToJournal: addToJournal && Boolean(note.trim()) });
+            const result = await safely(() =>
+              saveCheckIn({ day: today, mood, note, addToJournal: addToJournal && Boolean(note.trim()) }),
+            );
             if (!result.ok) return setError(result.error);
+            setCare(detectConcerns(note));
             setSaved(mood);
             onCheckIn(result.data.checkIn);
             if (result.data.entry) onJournalEntry?.(result.data.entry);
@@ -110,7 +117,7 @@ export function CheckInView({
               counselor, and bring it to God in prayer.
             </p>
           )}
-          {saved === "struggling" && <HelpCard compact />}
+          {(saved === "struggling" || care.length > 0) && <HelpCard concerns={care} compact />}
         </div>
       )}
 
