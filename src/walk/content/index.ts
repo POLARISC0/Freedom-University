@@ -3,6 +3,7 @@ export { DAILY_VERSES } from "./daily-verses";
 export { LESSONS, getLesson } from "./lessons";
 export { LOCATIONS } from "./locations";
 export { PATHS, getPath } from "./paths";
+export { HAIR_STYLES } from "./types";
 export type * from "./types";
 
 import { DAILY_VERSES } from "./daily-verses";

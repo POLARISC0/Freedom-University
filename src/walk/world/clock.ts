@@ -6,15 +6,30 @@ const MINUTES_PER_SECOND = DAY_MINUTES / DAY_REAL_SECONDS;
 
 export class WorldClock {
   minutes: number;
+  /** Days since the walk began; goes up each midnight. */
+  day: number;
   /** Multiplier for testing or for a "rest until morning" effect. */
   speed = 1;
 
-  constructor(startMinutes = 7 * 60) {
+  constructor(startMinutes = 7 * 60, day = 0) {
     this.minutes = ((startMinutes % DAY_MINUTES) + DAY_MINUTES) % DAY_MINUTES;
+    this.day = Math.max(0, Math.floor(day));
   }
 
   tick(realSeconds: number) {
-    this.minutes = (this.minutes + realSeconds * MINUTES_PER_SECOND * this.speed) % DAY_MINUTES;
+    this.advance(realSeconds * MINUTES_PER_SECOND * this.speed);
+  }
+
+  /** Move game time forward, rolling over into the next day at midnight. */
+  advance(gameMinutes: number) {
+    const total = this.minutes + Math.max(0, gameMinutes);
+    this.day += Math.floor(total / DAY_MINUTES);
+    this.minutes = total % DAY_MINUTES;
+  }
+
+  /** Game minutes since the walk began. */
+  get total(): number {
+    return this.day * DAY_MINUTES + this.minutes;
   }
 
   get hour(): number {

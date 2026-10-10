@@ -333,6 +333,7 @@ export function buildCapernaum(): WorldMap {
     spots,
     regions,
     npcs,
+    activitySpots: [],
     spawn: { x: 41.5, y: 33.5 },
   };
   // Shoreline-relative placements can land a spot on water or under an object; move those to solid ground.

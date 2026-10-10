@@ -1,5 +1,5 @@
-// The world model is independent of any renderer. Positions are in tiles (floating point for moving things).
-// The 2D Phaser renderer draws it top-down; a 3D renderer could read exactly the same data.
+// The world model is independent of any renderer. Positions are in tiles (floating point for moving things): x runs
+// east, y runs south. The 3D renderer reads exactly this data; nothing here knows how it is drawn.
 
 import type { Appearance } from "@/walk/content";
 
@@ -43,7 +43,11 @@ export type ObjectKind =
   | "jars"
   | "baskets"
   | "signpost"
-  | "lantern";
+  | "lantern"
+  /** A low table with a mat, bread and fish, where people share a meal. */
+  | "table"
+  /** A small cooking fire in a courtyard. */
+  | "cookfire";
 
 export interface WorldObject {
   id: string;
@@ -80,6 +84,9 @@ export interface Region {
   h: number;
 }
 
+/** How a person holds themselves while not walking. Renderers pick an animation from it. */
+export type Pose = "stand" | "kneel" | "sit" | "work" | "sleep";
+
 /** One entry in an NPC's day. Hours are 0-24 in game time; `spot` null means indoors (hidden). */
 export interface ScheduleEntry {
   from: number;
@@ -89,6 +96,38 @@ export interface ScheduleEntry {
   wander: number;
   /** Which way to face while standing there. */
   face?: Facing;
+  /** What they are doing there once arrived (kneeling in prayer, working at the nets...). Default "stand". */
+  pose?: Pose;
+  /** Shown when the player looks at them, e.g. "Praying alone before dawn (Mark 1:35)". */
+  doing?: string;
+}
+
+/** A place where the player can do something that feeds a spiritual need (pray, read, rest, help...). */
+export interface ActivitySpot {
+  id: string;
+  /** An activity id from `@/walk/life/activities`. */
+  activity: string;
+  x: number;
+  y: number;
+  /** How close the player must be, in tiles. */
+  radius: number;
+}
+
+export type WeatherKind = "clear" | "cloudy" | "mist" | "rain" | "windy";
+
+/** The weather right now. Every level is 0..1 so renderers can blend smoothly between kinds. */
+export interface Weather {
+  kind: WeatherKind;
+  /** Cloud cover: dims the sun. */
+  cloud: number;
+  /** Rainfall. */
+  rain: number;
+  /** Mist or haze: shortens how far you can see. */
+  fog: number;
+  /** Wind: waves on the lake, swaying trees and boats. */
+  wind: number;
+  /** For the HUD, e.g. "Morning mist over the lake". */
+  label: string;
 }
 
 export interface NpcDef {
@@ -122,5 +161,7 @@ export interface WorldMap {
   spots: Record<string, Spot>;
   regions: Region[];
   npcs: NpcDef[];
+  /** Places to pray, read, rest, help and share meals. */
+  activitySpots: ActivitySpot[];
   spawn: Vec;
 }

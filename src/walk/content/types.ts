@@ -1,5 +1,5 @@
 // Content model for Walk With Him. Everything here is plain data so it can be reviewed like a manuscript,
-// tested, and rendered by any front end (the 2D game today, a 3D one later).
+// tested, and rendered by any front end.
 
 /** A quotation from the World English Bible (public domain), with its chapter-and-verse reference. */
 export interface Passage {
@@ -31,9 +31,14 @@ export interface Appearance {
   sash: string;
   /** Head covering colour, if any. */
   headcloth?: string;
-  /** Rough body size: "child" draws a smaller sprite. */
+  /** Rough body size: "child" draws a smaller figure. */
   build?: "adult" | "child";
+  /** Hair shape under (or without) a head covering. Defaults to "short". */
+  hairStyle?: HairStyle;
 }
+
+export const HAIR_STYLES = ["short", "long", "curly", "bald"] as const;
+export type HairStyle = (typeof HAIR_STYLES)[number];
 
 export interface Character {
   id: string;

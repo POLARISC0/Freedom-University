@@ -4,7 +4,8 @@ import { collides, moveWithCollision, WalkGrid } from "./grid";
 import { rng } from "./noise";
 import { findPath } from "./pathfind";
 import type { StoryState } from "./story";
-import type { Facing, NpcDef, ScheduleEntry, Vec, WorldMap } from "./types";
+import type { Facing, NpcDef, Pose, ScheduleEntry, Vec, Weather, WorldMap } from "./types";
+import { weatherAt } from "./weather";
 
 export const PLAYER_SPEED = 4.2; // tiles per second
 export const INTERACT_RADIUS = 1.7;
@@ -14,6 +15,20 @@ export interface Walker {
   pos: Vec;
   facing: Facing;
   moving: boolean;
+  /** What they're doing while standing still. Renderers show "stand" while moving. */
+  pose: Pose;
+}
+
+/** An activity the player is in the middle of (praying, resting...). */
+export interface ActivityRun {
+  /** Activity id from `@/walk/life/activities`. */
+  id: string;
+  /** The activity spot it is happening at. */
+  spotId: string;
+  pose: Pose;
+  /** Real seconds done so far, and in total. */
+  elapsed: number;
+  duration: number;
 }
 
 export interface NpcState extends Walker {
@@ -48,6 +63,8 @@ export interface SavedState {
   y: number;
   facing: Facing;
   minutes: number;
+  /** Days since the walk began. */
+  day: number;
 }
 
 function facingFor(dx: number, dy: number, fallback: Facing): Facing {
@@ -68,7 +85,7 @@ export class World {
   readonly grid: WalkGrid;
   readonly clock: WorldClock;
   readonly events = new Emitter<WorldEvents>();
-  readonly player: Walker & { path: Vec[] };
+  readonly player: Walker & { path: Vec[]; activity: ActivityRun | null };
   readonly npcs: NpcState[];
 
   private input: Vec = { x: 0, y: 0 };
@@ -85,10 +102,10 @@ export class World {
   constructor(map: WorldMap, saved?: Partial<SavedState>) {
     this.map = map;
     this.grid = new WalkGrid(map);
-    this.clock = new WorldClock(saved?.minutes ?? 7 * 60);
+    this.clock = new WorldClock(saved?.minutes ?? 7 * 60, typeof saved?.day === "number" ? saved.day : 0);
     const start = saved && typeof saved.x === "number" && typeof saved.y === "number" ? { x: saved.x, y: saved.y } : map.spawn;
     const pos = collides(this.grid, start.x, start.y) ? this.walkableNear(map.spawn) : start;
-    this.player = { pos, facing: saved?.facing ?? "down", moving: false, path: [] };
+    this.player = { pos, facing: saved?.facing ?? "down", moving: false, pose: "stand", path: [], activity: null };
     this.npcs = map.npcs.map((def) => this.createNpc(def));
   }
 
@@ -157,6 +174,11 @@ export class World {
     return this.story;
   }
 
+  /** The weather right now. */
+  get weather(): Weather {
+    return weatherAt(this.clock.day, this.clock.minutes);
+  }
+
   /**
    * Bring a character straight to where the story needs them (beside a quest spot) if they're still far away,
    * so a scene never starts without them. Close by, they keep walking the last few steps.
@@ -185,7 +207,13 @@ export class World {
   }
 
   save(): SavedState {
-    return { x: this.player.pos.x, y: this.player.pos.y, facing: this.player.facing, minutes: Math.round(this.clock.minutes) };
+    return {
+      x: this.player.pos.x,
+      y: this.player.pos.y,
+      facing: this.player.facing,
+      minutes: Math.round(this.clock.minutes),
+      day: this.clock.day,
+    };
   }
 
   // ---- Queries -------------------------------------------------------------------------------------------------
@@ -270,6 +298,7 @@ export class World {
       pos: { x: 0, y: 0 },
       facing: def.facing ?? "down",
       moving: false,
+      pose: "stand",
       visible: true,
       path: [],
       goal: null,
