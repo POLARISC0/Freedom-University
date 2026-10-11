@@ -50,6 +50,50 @@
 body {
   background: var(--bg);
   color: var(--ink);
+  /* Full-bleed sections use 100vw, which includes the scrollbar; clip instead of scrolling sideways. */
+  overflow-x: clip;
+}
+
+/* ---- World (home page) brand layer: deliberately one dark look in both themes ---- */
+.font-wide {
+  font-family: var(--font-archivo), "Arial Black", Impact, sans-serif;
+  font-stretch: 125%;
+}
+.full-bleed {
+  width: 100vw;
+  margin-inline: calc(50% - 50vw);
+}
+/* Visible focus on every link in the dark world pages. */
+.full-bleed a:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 4px;
+}
+.world-grid {
+  background-color: #111113;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.09) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+@keyframes fu-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-7px); }
+}
+@keyframes fu-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+@keyframes fu-dash {
+  to { stroke-dashoffset: -16; }
+}
+@keyframes fu-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.55); }
+  100% { box-shadow: 0 0 0 12px rgba(255, 255, 255, 0); }
+}
+.fu-float { animation: fu-float 6s ease-in-out infinite; }
+.fu-marquee { animation: fu-marquee 32s linear infinite; }
+.fu-dash { stroke-dasharray: 1.5 2.5; animation: fu-dash 3s linear infinite; }
+.fu-pulse { animation: fu-pulse 1.8s ease-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .fu-float, .fu-marquee, .fu-dash, .fu-pulse { animation: none; }
 }
 
 /* Markdown rendered from professors and the news briefing. */
