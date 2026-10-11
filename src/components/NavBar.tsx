@@ -12,8 +12,8 @@ export async function NavBar() {
         </Link>
         {user && (
           <div className="flex items-center gap-4 text-sm text-muted">
+            <Link href="/floor" className="hover:text-ink">Trading Floor</Link>
             <Link href="/dashboard" className="hover:text-ink">Dashboard</Link>
-            <Link href="/classrooms" className="hover:text-ink">Classrooms</Link>
             <Link href="/news" className="hover:text-ink">Daily Briefing</Link>
           </div>
         )}

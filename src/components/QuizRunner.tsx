@@ -7,22 +7,21 @@ import { linkSourceCitations } from "@/lib/citations";
 import type { PublicQuiz, QuizResult } from "@/lib/quiz";
 import { Markdown } from "./Markdown";
 
-type SubmitResult = QuizResult & { nextModule: { slug: string; title: string } | null };
+type SubmitResult = QuizResult & { nextLesson: { slug: string; title: string } | null };
 
 const LETTERS = ["A", "B", "C", "D"];
 
 export function QuizRunner({
-  professorSlug,
-  moduleSlug,
+  specialistSlug,
+  lessonSlug,
   sources,
 }: {
-  professorSlug: string;
-  moduleSlug: string;
+  specialistSlug: string;
+  lessonSlug: string;
   sources: Source[];
 }) {
   const [quiz, setQuiz] = useState<PublicQuiz | null>(null);
   const [answers, setAnswers] = useState<(number | null)[]>([]);
-  const [shortAnswer, setShortAnswer] = useState("");
   const [result, setResult] = useState<SubmitResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -32,12 +31,11 @@ export function QuizRunner({
     setLoading(true);
     setError(null);
     setResult(null);
-    setShortAnswer("");
     try {
       const res = await fetch("/api/quiz/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ professorSlug, moduleSlug }),
+        body: JSON.stringify({ specialistSlug, lessonSlug }),
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error ?? "Could not load the quiz.");
@@ -48,7 +46,7 @@ export function QuizRunner({
     } finally {
       setLoading(false);
     }
-  }, [professorSlug, moduleSlug]);
+  }, [specialistSlug, lessonSlug]);
 
   useEffect(() => {
     // Fetching on mount: the quiz is generated (or resumed) server-side.
@@ -64,7 +62,7 @@ export function QuizRunner({
       const res = await fetch("/api/quiz/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ attemptId: quiz.attemptId, answers, shortAnswer }),
+        body: JSON.stringify({ attemptId: quiz.attemptId, answers }),
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error ?? "Could not submit the quiz.");
@@ -80,7 +78,7 @@ export function QuizRunner({
   if (loading) {
     return (
       <div className="rounded-xl border border-line bg-surface p-10 text-center text-muted">
-        <p className="animate-pulse">The professor is writing your quiz…</p>
+        <p className="animate-pulse">Writing your quiz…</p>
         <p className="mt-2 text-xs">This can take up to a minute.</p>
       </div>
     );
@@ -96,44 +94,36 @@ export function QuizRunner({
   }
 
   const unanswered = answers.filter((a) => a === null).length;
+  const lessonHref = `/specialists/${specialistSlug}/${lessonSlug}`;
 
   return (
     <div className="space-y-6">
       {result && (
-        <div
-          className={`space-y-3 rounded-xl border p-6 ${result.passed ? "border-success" : "border-danger"} bg-surface`}
-        >
+        <div className={`space-y-3 rounded-xl border bg-surface p-6 ${result.passed ? "border-success" : "border-danger"}`}>
           <p className="text-4xl font-semibold tabular-nums">{result.score}%</p>
           <p className="font-medium">
             {result.passed
-              ? "Passed! This module is complete."
-              : "Not quite. Review the explanations below, revisit the lesson and try a new quiz."}
+              ? "Passed! Lesson complete and progress saved."
+              : "Not quite. Review the explanations, revisit the lesson and try a new quiz."}
           </p>
-          <p className="text-sm text-muted">
-            {result.mcqCorrect}/{quiz.questions.length} multiple choice · {result.shortAnswer.points}/
-            {result.shortAnswer.maxPoints} short answer
-          </p>
+          <p className="text-sm text-muted">{result.correct}/{quiz.questions.length} correct</p>
           <div className="flex flex-wrap gap-3 pt-1">
-            {result.nextModule ? (
+            {result.nextLesson ? (
               <Link
-                href={`/classrooms/${professorSlug}/${result.nextModule.slug}`}
+                href={`/specialists/${specialistSlug}/${result.nextLesson.slug}`}
                 className="rounded-lg bg-brand px-4 py-2 font-medium text-brand-ink"
               >
-                Next: {result.nextModule.title} →
+                Next: {result.nextLesson.title} →
               </Link>
             ) : (
               result.passed && (
-                <Link href="/dashboard" className="rounded-lg bg-brand px-4 py-2 font-medium text-brand-ink">
-                  Back to dashboard
+                <Link href={`/specialists/${specialistSlug}`} className="rounded-lg bg-brand px-4 py-2 font-medium text-brand-ink">
+                  Back to the office
                 </Link>
               )
             )}
-            <Link href={`/classrooms/${professorSlug}/${moduleSlug}`} className="rounded-lg border border-line px-4 py-2">
-              Back to the lesson
-            </Link>
-            <button onClick={load} className="rounded-lg border border-line px-4 py-2">
-              Take a new quiz
-            </button>
+            <Link href={lessonHref} className="rounded-lg border border-line px-4 py-2">Back to the lesson</Link>
+            <button onClick={load} className="rounded-lg border border-line px-4 py-2">Take a new quiz</button>
           </div>
         </div>
       )}
@@ -182,33 +172,6 @@ export function QuizRunner({
             </li>
           );
         })}
-
-        <li className="space-y-3 rounded-xl border border-line bg-surface p-5">
-          <p className="font-medium">
-            <span className="text-muted">{quiz.questions.length + 1}.</span> {quiz.shortAnswer.question}
-          </p>
-          <textarea
-            value={shortAnswer}
-            onChange={(e) => setShortAnswer(e.target.value)}
-            disabled={!!result}
-            rows={5}
-            maxLength={3000}
-            placeholder="Explain in your own words (2–4 sentences)…"
-            className="w-full rounded-lg border border-line bg-bg px-3 py-2 outline-none focus:border-brand"
-          />
-          {result && (
-            <div className="space-y-2 rounded-lg bg-surface-2 p-3 text-sm">
-              <p className="font-medium">
-                {result.shortAnswer.points}/{result.shortAnswer.maxPoints} points
-              </p>
-              <p>{result.shortAnswer.feedback}</p>
-              <details>
-                <summary className="cursor-pointer text-muted">Model answer</summary>
-                <p className="mt-1">{result.shortAnswer.sampleAnswer}</p>
-              </details>
-            </div>
-          )}
-        </li>
       </ol>
 
       {error && <p className="text-sm text-danger">{error}</p>}

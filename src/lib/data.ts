@@ -3,31 +3,24 @@ import { db } from "./db";
 import type { ProgressRow } from "./progress";
 
 export async function getProgressRows(userId: string): Promise<ProgressRow[]> {
-  return db.moduleProgress.findMany({
+  return db.lessonProgress.findMany({
     where: { userId },
-    select: {
-      professorSlug: true,
-      moduleSlug: true,
-      status: true,
-      bestScore: true,
-      attempts: true,
-      completedAt: true,
-    },
+    select: { specialistSlug: true, lessonSlug: true, status: true, bestScore: true, attempts: true, completedAt: true },
   });
 }
 
-/** Record that the student opened a module (no-op if already tracked). */
-export async function markModuleStarted(userId: string, professorSlug: string, moduleSlug: string) {
-  await db.moduleProgress.upsert({
-    where: { userId_professorSlug_moduleSlug: { userId, professorSlug, moduleSlug } },
+/** Record that the student opened a lesson (no-op if already tracked). */
+export async function markLessonStarted(userId: string, specialistSlug: string, lessonSlug: string) {
+  await db.lessonProgress.upsert({
+    where: { userId_specialistSlug_lessonSlug: { userId, specialistSlug, lessonSlug } },
     update: {},
-    create: { userId, professorSlug, moduleSlug },
+    create: { userId, specialistSlug, lessonSlug },
   });
 }
 
-export async function getChatHistory(userId: string, professorSlug: string, moduleSlug: string) {
+export async function getChatHistory(userId: string, specialistSlug: string, thread: string) {
   return db.chatMessage.findMany({
-    where: { userId, professorSlug, moduleSlug },
+    where: { userId, specialistSlug, thread },
     orderBy: { createdAt: "asc" },
     select: { id: true, role: true, content: true },
   });

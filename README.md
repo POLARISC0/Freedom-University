@@ -1,32 +1,25 @@
 # Freedom University
 
-A crypto and finance classroom taught by AI professors. Students pick a classroom, learn through a structured
-beginner → advanced lesson path by chatting with that professor, pass an AI-written quiz at the end of each module
-to unlock the next, and read a daily news briefing written by Professor 3.
+**A product by Polaris.** A live trading floor of AI specialists who teach, not trade.
 
-**Education only.** Every professor is instructed never to give personalised trading, investment, tax or legal
-advice, and to say so when asked.
+Students watch four specialists walk around a 2D floor and post short, cited takes on the day's news to a shared feed, sometimes talking to each other. Click any specialist to chat in their office, take their five-lesson beginner course, and pass a short AI-written quiz at the end of each lesson. Each specialist remembers past conversations with the student.
 
-## The faculty
+**Education only.** Specialists never give personalised financial, credit, tax or legal advice, cite their sources, and never name real people.
 
-| # | Professor | Course |
-|---|-----------|--------|
-| 1 | Ada Ledger 🔐 | Bitcoin & Ethereum Fundamentals: how they work, wallets, self-custody, security |
-| 2 | Marcus Cycle 📈 | Altcoins & Market Cycles: bull/bear cycles, halving, risk tiers, exit planning |
-| 3 | Eleanor Reserve 🏛️ | Banking & the Financial System: the Fed, Treasury, stablecoins, CBDCs, Ripple/XRP, tokenization |
-| 4 | Rosa Budget 💳 | Credit & Personal Finance: credit scores, debt payoff, budgeting, LLC business credit |
-| 5 | Theo Compound 🌱 | Investing Basics: allocation, dollar-cost averaging, crypto taxes |
+## The specialists
 
-Each course has six modules (two Beginner, two Intermediate, two Advanced) with learning objectives, key terms and a
-curated reading list that the professor cites as `[S1]`, `[S2]`, …
+| | Name | Topic | Lessons |
+|---|---|---|---|
+| 🪙 | Nova | Crypto | Bitcoin & Ethereum · XRP, XLM & Solana · Stablecoins · Market cycles · Exit strategy |
+| 💳 | Sterling | Credit | Credit scores · Building personal credit · Credit first, corporation second, funding third · Business credit · Funding readiness |
+| 🏛️ | Atlas | Banking & the System | Central banks · The Treasury · Inflation as a hidden tax · How banks profit from debt · Tokenised assets |
+| 🌱 | Sage | Mindset & Ownership | Consumer vs owner · Paycheck to cash flow · What counts as an asset · First ownership steps · The long game |
+
+Atlas also writes the daily news briefing.
 
 ## Stack
 
-- Next.js 16 (App Router) + TypeScript + Tailwind CSS 4
-- SQLite via Prisma 7 (`@prisma/adapter-better-sqlite3`)
-- Anthropic API (`@anthropic-ai/sdk`) for the professors, defaulting to `claude-opus-5-5`
-- GNews.io for headlines
-- Vitest for unit tests
+Next.js 16 (App Router) + TypeScript + Tailwind CSS 4 · SQLite via Prisma 7 · Anthropic API (`@anthropic-ai/sdk`, default `claude-opus-5-5`) · GNews.io headlines · Vitest
 
 ## Getting started
 
@@ -37,47 +30,44 @@ npx prisma migrate dev # creates dev.db
 npm run dev            # http://localhost:3000
 ```
 
-### Environment variables
-
 | Variable | Purpose |
 |----------|---------|
 | `DATABASE_URL` | SQLite file, default `file:./dev.db` |
-| `ANTHROPIC_API_KEY` | Powers lessons, quizzes and the briefing |
-| `ANTHROPIC_MODEL` | Defaults to `claude-opus-5-5`; set `claude-sonnet-5-5` for lower cost |
-| `GNEWS_API_KEY` | Daily briefing headlines ([gnews.io](https://gnews.io), free tier: 100 requests/day) |
-| `NEWS_MOCK` | Set to `1` to use fake headlines while developing without a GNews key |
+| `ANTHROPIC_API_KEY` | Powers chat, quizzes, memory, the feed and the briefing |
+| `ANTHROPIC_MODEL` | Defaults to `claude-opus-5-5`; `claude-sonnet-5-5` is cheaper |
+| `GNEWS_API_KEY` | Daily news headlines ([gnews.io](https://gnews.io), free tier: 100 requests/day) |
+| `FEED_INTERVAL_MINUTES` | Minutes between feed updates while someone is watching (default 4) |
+| `NEWS_MOCK` | `1` uses fake headlines for local development |
 
 ## How it works
 
 ```
 src/
-├── content/professors/   # the curriculum: personas, modules, objectives, reading lists (typed code)
+├── content/
+│   ├── specialists/   # Nova, Sterling, Atlas, Sage: personality, schedule, 5 lessons, reading list
+│   └── floor.ts       # floor zones and the clock-based movement schedule
 ├── lib/
-│   ├── prompts.ts        # shared "education only" + citation rules, per-module system prompts
-│   ├── ai.ts             # quiz writing, short-answer grading, news briefing (structured outputs)
-│   ├── progress.ts       # unlock rules (pass threshold 70%)
-│   ├── quiz.ts           # quiz schema, validation, grading
-│   ├── auth.ts           # username-only sessions (hashed token in SQLite, httpOnly cookie)
-│   └── news.ts           # GNews client
-├── app/
-│   ├── classrooms/…      # catalog → syllabus → chat room → quiz
-│   ├── dashboard/        # completed modules, scores, continue-learning
-│   ├── news/             # daily briefing
-│   └── api/              # /chat (streaming), /quiz/generate, /quiz/submit
-└── proxy.ts              # sends signed-out visitors to /login
+│   ├── prompts.ts     # shared rules (education only, citations, no real names) and all prompts
+│   ├── ai.ts          # quiz, memory notes, news briefing and feed calls (structured outputs)
+│   ├── feed.ts        # generates the next feed update when due
+│   ├── memory.ts      # per-student, per-specialist notes
+│   ├── briefing.ts    # daily news briefing from GNews headlines
+│   ├── progress.ts    # lesson unlocking (pass mark 70%)
+│   └── quiz.ts        # quiz schema, validation and grading
+├── components/TradingFloor.tsx  # the 2D floor + live feed
+└── app/
+    ├── floor/                         # the trading floor
+    ├── specialists/[specialist]/      # office: office-hours chat, lessons, memory
+    ├── specialists/[s]/[lesson]/quiz  # lesson chat and quiz
+    ├── dashboard/  news/  login/
+    └── api/        # /chat (streaming), /quiz/generate, /quiz/submit, /feed
 ```
 
-- **Lessons** stream from `/api/chat`. Each student's conversation per module is stored in `ChatMessage`, and the
-  last 40 messages are sent back as context with prompt caching.
-- **Quizzes** are written fresh for each attempt: five multiple-choice questions, graded on the server against an
-  answer key the browser never sees, plus one short answer graded by the professor (0–2 points). Passing at 70% or
-  more marks the module `COMPLETED` in `ModuleProgress` and unlocks the next one. An unfinished quiz is reused for
-  an hour, so reloading can't re-roll questions.
-- **Citations**: the professors cite their reading list inline, and `[S#]` markers become links. They have no live
-  market data and are told to say so for time-sensitive facts.
-- **Daily briefing**: fetches crypto and macro headlines from GNews and has Professor 3 summarise them with `[n]`
-  citations back to each headline. It's cached per day in `NewsBriefing` and can be refreshed at most once an hour.
-- **Refusals**: on supported models, requests use the server-side refusal fallback (`fallbacks: "default"`).
+- **Floor:** positions come from the clock (40-second slots), so every viewer sees the same floor without a server loop.
+- **Feed:** the floor polls `/api/feed` every 20 seconds. When the last post is older than `FEED_INTERVAL_MINUTES`, the server writes the next update in the background from today's briefing (writing the briefing first if needed): a post by the specialist who posted least recently, and 40% of the time a reply from another specialist. Posts cite the headlines they use. Nobody watching means no API calls.
+- **Memory:** after every 4 student messages to a specialist, their notes about the student are rewritten from the recent conversation and fed into future chats. Students can see the notes and clear them.
+- **Lessons and quizzes:** each lesson is a chat with fixed objectives. Its quiz is four new multiple-choice questions per attempt, graded on the server; passing (70%+) saves progress and unlocks the next lesson.
+- **Refusals:** requests use the server-side refusal fallback (`fallbacks: "default"`) on supported models.
 
 ## Scripts
 
@@ -85,9 +75,6 @@ src/
 
 ## Known limitations
 
-- **Login has no password.** Anyone who knows a username can sign in as that student. This is fine for personal or
-  classroom use. Add passwords or OAuth before deploying publicly.
-- The curriculum states facts as of late 2025 (e.g. the GENIUS Act, SEC v. Ripple, Form 1099-DA). Review the
-  modules periodically as laws and markets change.
-- The GNews integration follows GNews's documented v4 API but was built without live access to it. Run one
-  briefing with your key to confirm.
+- **Login has no password**: anyone who knows a username can sign in as that student. Add passwords or OAuth before a public launch.
+- The feed's scheduling lock is per server process; running several instances could post more often.
+- Lesson content states facts as of late 2025 (e.g. the GENIUS Act). Review it periodically.

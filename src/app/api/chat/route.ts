@@ -1,21 +1,24 @@
 import type Anthropic from "@anthropic-ai/sdk";
+import { after } from "next/server";
 import { z } from "zod";
-import { getModule } from "@/content";
+import { getLesson, getSpecialist, OFFICE_HOURS } from "@/content";
 import { anthropic, describeApiError, fallbackParams, hasAnthropicKey, MODEL } from "@/lib/anthropic";
 import { getCurrentUser } from "@/lib/auth";
-import { getProgressRows, markModuleStarted, todayUtc } from "@/lib/data";
+import { getProgressRows, markLessonStarted, todayUtc } from "@/lib/data";
 import { db } from "@/lib/db";
+import { getMemoryNotes, refreshMemoryIfDue } from "@/lib/memory";
 import { isUnlocked } from "@/lib/progress";
-import { buildProfessorSystemPrompt } from "@/lib/prompts";
+import { buildSpecialistSystemPrompt } from "@/lib/prompts";
 
 const BodySchema = z.object({
-  professorSlug: z.string(),
-  moduleSlug: z.string(),
+  specialistSlug: z.string(),
+  // A lesson slug, or "office-hours".
+  thread: z.string(),
   message: z.string().trim().min(1).max(4000),
 });
 
-// How many earlier messages are sent back to the model each turn.
-const HISTORY_LIMIT = 40;
+// How many earlier messages in this thread are sent back to the model each turn.
+const HISTORY_LIMIT = 30;
 
 export async function POST(request: Request) {
   const user = await getCurrentUser();
@@ -26,20 +29,24 @@ export async function POST(request: Request) {
 
   const parsed = BodySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return Response.json({ error: "Invalid request." }, { status: 400 });
-  const { professorSlug, moduleSlug, message } = parsed.data;
+  const { specialistSlug, thread, message } = parsed.data;
 
-  const found = getModule(professorSlug, moduleSlug);
-  if (!found) return Response.json({ error: "Unknown classroom." }, { status: 404 });
-  const { professor, module, index } = found;
+  const specialist = getSpecialist(specialistSlug);
+  const found = thread === OFFICE_HOURS ? null : getLesson(specialistSlug, thread);
+  if (!specialist || (thread !== OFFICE_HOURS && !found)) {
+    return Response.json({ error: "Unknown specialist or lesson." }, { status: 404 });
+  }
 
   const progress = await getProgressRows(user.id);
-  if (!isUnlocked(professor, index, progress)) {
-    return Response.json({ error: "Finish the previous module's quiz to unlock this one." }, { status: 403 });
+  if (found) {
+    if (!isUnlocked(specialist, found.index, progress)) {
+      return Response.json({ error: "Pass the previous lesson's quiz to unlock this one." }, { status: 403 });
+    }
+    await markLessonStarted(user.id, specialistSlug, thread);
   }
-  await markModuleStarted(user.id, professorSlug, moduleSlug);
 
   const recent = await db.chatMessage.findMany({
-    where: { userId: user.id, professorSlug, moduleSlug },
+    where: { userId: user.id, specialistSlug, thread },
     orderBy: { createdAt: "desc" },
     take: HISTORY_LIMIT,
     select: { role: true, content: true },
@@ -50,16 +57,15 @@ export async function POST(request: Request) {
   // The conversation sent to the API must open with a user turn.
   while (history[0]?.role === "assistant") history.shift();
 
-  await db.chatMessage.create({
-    data: { userId: user.id, professorSlug, moduleSlug, role: "user", content: message },
-  });
+  await db.chatMessage.create({ data: { userId: user.id, specialistSlug, thread, role: "user", content: message } });
 
-  const system = buildProfessorSystemPrompt({
-    professor,
-    module,
-    completedModuleSlugs: progress
-      .filter((p) => p.professorSlug === professorSlug && p.status === "COMPLETED")
-      .map((p) => p.moduleSlug),
+  const system = buildSpecialistSystemPrompt({
+    specialist,
+    lesson: found?.lesson ?? null,
+    completedLessonSlugs: progress
+      .filter((p) => p.specialistSlug === specialistSlug && p.status === "COMPLETED")
+      .map((p) => p.lessonSlug),
+    memoryNotes: await getMemoryNotes(user.id, specialistSlug),
     username: user.username,
     today: todayUtc(),
   });
@@ -78,6 +84,9 @@ export async function POST(request: Request) {
     { signal: request.signal },
   );
 
+  // Update the specialist's notes about the student once the reply is done.
+  after(() => refreshMemoryIfDue(user.id, specialist).catch((error) => console.error("memory refresh failed", error)));
+
   const encoder = new TextEncoder();
   const body = new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -89,15 +98,14 @@ export async function POST(request: Request) {
             controller.enqueue(encoder.encode(event.delta.text));
           }
         }
-        const final = await stream.finalMessage();
-        if (final.stop_reason === "refusal") {
-          const note = "\n\n_The professor can't continue with that request. Try rephrasing your question._";
+        if ((await stream.finalMessage()).stop_reason === "refusal") {
+          const note = "\n\n_I can't continue with that request. Try rephrasing your question._";
           text += note;
           controller.enqueue(encoder.encode(note));
         }
         if (text.trim()) {
           await db.chatMessage.create({
-            data: { userId: user.id, professorSlug, moduleSlug, role: "assistant", content: text },
+            data: { userId: user.id, specialistSlug, thread, role: "assistant", content: text },
           });
         }
       } catch (error) {
@@ -114,7 +122,5 @@ export async function POST(request: Request) {
     },
   });
 
-  return new Response(body, {
-    headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" },
-  });
+  return new Response(body, { headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" } });
 }

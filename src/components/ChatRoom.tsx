@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { Source } from "@/content/types";
 import { linkSourceCitations } from "@/lib/citations";
-import { LESSON_KICKOFF } from "@/lib/prompts";
 import { Markdown } from "./Markdown";
 
 export interface ChatMessageView {
@@ -20,13 +19,17 @@ const SUGGESTIONS = [
 ];
 
 export function ChatRoom({
-  professor,
-  moduleSlug,
+  specialist,
+  thread,
+  kickoff,
   sources,
   initialMessages,
 }: {
-  professor: { slug: string; name: string; emoji: string };
-  moduleSlug: string;
+  specialist: { slug: string; name: string; emoji: string };
+  /** A lesson slug, or "office-hours". */
+  thread: string;
+  /** The opening message sent by the start button, and its label. */
+  kickoff: { label: string; intro: string; message: string };
   sources: Source[];
   initialMessages: ChatMessageView[];
 }) {
@@ -62,7 +65,7 @@ export function ChatRoom({
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ professorSlug: professor.slug, moduleSlug, message }),
+        body: JSON.stringify({ specialistSlug: specialist.slug, thread, message }),
         signal: controller.signal,
       });
       if (!res.ok || !res.body) {
@@ -94,15 +97,15 @@ export function ChatRoom({
       <div className="max-h-[65vh] min-h-[320px] space-y-5 overflow-y-auto p-4 sm:p-6" aria-live="polite">
         {messages.length === 0 && (
           <div className="flex flex-col items-center gap-4 py-12 text-center">
-            <div className="text-5xl" aria-hidden>{professor.emoji}</div>
+            <div className="text-5xl" aria-hidden>{specialist.emoji}</div>
             <p className="max-w-sm text-muted">
-              {professor.name} is ready to teach this module. Start the lesson, or ask your own question.
+              {kickoff.intro}
             </p>
             <button
-              onClick={() => send(LESSON_KICKOFF)}
+              onClick={() => send(kickoff.message)}
               className="rounded-lg bg-brand px-5 py-2.5 font-medium text-brand-ink"
             >
-              Start the lesson
+              {kickoff.label}
             </button>
           </div>
         )}
@@ -115,9 +118,9 @@ export function ChatRoom({
             </div>
           ) : (
             <div key={m.id} className="flex gap-3">
-              <div className="mt-0.5 text-2xl" aria-hidden>{professor.emoji}</div>
+              <div className="mt-0.5 text-2xl" aria-hidden>{specialist.emoji}</div>
               <div className="min-w-0 flex-1">
-                <p className="mb-1 text-xs font-medium text-muted">{professor.name}</p>
+                <p className="mb-1 text-xs font-medium text-muted">{specialist.name}</p>
                 {m.content ? (
                   <Markdown>{linkSourceCitations(m.content, sources)}</Markdown>
                 ) : (
@@ -164,7 +167,7 @@ export function ChatRoom({
           }}
           rows={2}
           maxLength={4000}
-          placeholder={`Ask ${professor.name.split(" ").at(-1)} a question…`}
+          placeholder={`Ask ${specialist.name} a question…`}
           className="min-w-0 flex-1 resize-none rounded-lg border border-line bg-bg px-3 py-2 outline-none focus:border-brand"
           aria-label="Your message"
         />

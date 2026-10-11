@@ -16,29 +16,28 @@ CREATE TABLE "Session" (
 );
 
 -- CreateTable
-CREATE TABLE "ModuleProgress" (
+CREATE TABLE "LessonProgress" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "userId" TEXT NOT NULL,
-    "professorSlug" TEXT NOT NULL,
-    "moduleSlug" TEXT NOT NULL,
+    "specialistSlug" TEXT NOT NULL,
+    "lessonSlug" TEXT NOT NULL,
     "status" TEXT NOT NULL DEFAULT 'IN_PROGRESS',
     "bestScore" INTEGER NOT NULL DEFAULT 0,
     "attempts" INTEGER NOT NULL DEFAULT 0,
     "startedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "completedAt" DATETIME,
     "updatedAt" DATETIME NOT NULL,
-    CONSTRAINT "ModuleProgress_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+    CONSTRAINT "LessonProgress_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 -- CreateTable
 CREATE TABLE "QuizAttempt" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "userId" TEXT NOT NULL,
-    "professorSlug" TEXT NOT NULL,
-    "moduleSlug" TEXT NOT NULL,
+    "specialistSlug" TEXT NOT NULL,
+    "lessonSlug" TEXT NOT NULL,
     "quiz" JSONB NOT NULL,
     "answers" JSONB,
-    "grading" JSONB,
     "score" INTEGER,
     "passed" BOOLEAN,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -50,12 +49,33 @@ CREATE TABLE "QuizAttempt" (
 CREATE TABLE "ChatMessage" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "userId" TEXT NOT NULL,
-    "professorSlug" TEXT NOT NULL,
-    "moduleSlug" TEXT NOT NULL,
+    "specialistSlug" TEXT NOT NULL,
+    "thread" TEXT NOT NULL,
     "role" TEXT NOT NULL,
     "content" TEXT NOT NULL,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "ChatMessage_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "SpecialistMemory" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    "specialistSlug" TEXT NOT NULL,
+    "notes" TEXT NOT NULL,
+    "messagesAtUpdate" INTEGER NOT NULL DEFAULT 0,
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "SpecialistMemory_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "FeedPost" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "specialistSlug" TEXT NOT NULL,
+    "content" TEXT NOT NULL,
+    "citations" JSONB NOT NULL,
+    "threadId" TEXT,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- CreateTable
@@ -78,16 +98,25 @@ CREATE UNIQUE INDEX "Session_tokenHash_key" ON "Session"("tokenHash");
 CREATE INDEX "Session_userId_idx" ON "Session"("userId");
 
 -- CreateIndex
-CREATE INDEX "ModuleProgress_userId_idx" ON "ModuleProgress"("userId");
+CREATE INDEX "LessonProgress_userId_idx" ON "LessonProgress"("userId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "ModuleProgress_userId_professorSlug_moduleSlug_key" ON "ModuleProgress"("userId", "professorSlug", "moduleSlug");
+CREATE UNIQUE INDEX "LessonProgress_userId_specialistSlug_lessonSlug_key" ON "LessonProgress"("userId", "specialistSlug", "lessonSlug");
 
 -- CreateIndex
-CREATE INDEX "QuizAttempt_userId_professorSlug_moduleSlug_idx" ON "QuizAttempt"("userId", "professorSlug", "moduleSlug");
+CREATE INDEX "QuizAttempt_userId_specialistSlug_lessonSlug_idx" ON "QuizAttempt"("userId", "specialistSlug", "lessonSlug");
 
 -- CreateIndex
-CREATE INDEX "ChatMessage_userId_professorSlug_moduleSlug_createdAt_idx" ON "ChatMessage"("userId", "professorSlug", "moduleSlug", "createdAt");
+CREATE INDEX "ChatMessage_userId_specialistSlug_thread_createdAt_idx" ON "ChatMessage"("userId", "specialistSlug", "thread", "createdAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "SpecialistMemory_userId_specialistSlug_key" ON "SpecialistMemory"("userId", "specialistSlug");
+
+-- CreateIndex
+CREATE INDEX "FeedPost_createdAt_idx" ON "FeedPost"("createdAt");
+
+-- CreateIndex
+CREATE INDEX "FeedPost_threadId_idx" ON "FeedPost"("threadId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "NewsBriefing_day_key" ON "NewsBriefing"("day");

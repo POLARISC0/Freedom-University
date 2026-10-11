@@ -9,7 +9,7 @@ const fraunces = Fraunces({ variable: "--font-serif-display", subsets: ["latin"]
 
 export const metadata: Metadata = {
   title: { default: "Freedom University", template: "%s · Freedom University" },
-  description: "A crypto and finance classroom taught by AI professors. Education only, never financial advice.",
+  description: "A live trading floor of AI specialists who teach, not trade. A product by Polaris. Education only, never financial advice.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -22,7 +22,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <NavBar />
         <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6">{children}</main>
         <footer className="border-t border-line py-6 text-center text-xs text-muted">
-          Freedom University provides education only. Nothing here is financial, investment, tax or legal advice.
+          Freedom University, a product by Polaris. Education only: nothing here is financial, investment, credit, tax or
+          legal advice.
         </footer>
       </body>
     </html>

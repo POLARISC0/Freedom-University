@@ -1,31 +1,29 @@
 import "server-only";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import type { CourseModule, Professor } from "@/content/types";
+import type { Lesson, Specialist } from "@/content/types";
 import { anthropic, fallbackParams, MODEL } from "./anthropic";
+import { FeedBatchSchema, type FeedBatch } from "./feed-rules";
 import type { Headline } from "./news";
-import {
-  buildNewsBriefingPrompt,
-  buildQuizPrompt,
-  buildShortAnswerGradingPrompt,
-} from "./prompts";
-import {
-  GeneratedQuizSchema,
-  ShortAnswerGradeSchema,
-  validateQuiz,
-  type GeneratedQuiz,
-  type ShortAnswerGrade,
-} from "./quiz";
+import { buildFeedPrompt, buildMemoryPrompt, buildNewsBriefingPrompt, buildQuizPrompt } from "./prompts";
+import { GeneratedQuizSchema, validateQuiz, type GeneratedQuiz } from "./quiz";
 
 export class AiRefusalError extends Error {}
 
-function professorSystem(professor: Professor): string {
-  return `You are ${professor.name}, who teaches "${professor.course}" at Freedom University. ${professor.persona} You provide education only, never personalised financial, tax or legal advice.`;
+function specialistSystem(specialist: Specialist): string {
+  return `You are ${specialist.name}, the ${specialist.role} at Freedom University. ${specialist.personality} You provide education only, never personalised financial, tax or legal advice, and you never name real people.`;
 }
 
-/** Ask the professor to write a fresh quiz. Retries once if the quiz breaks the format rules. */
+function textOf(message: { content: { type: string; text?: string }[] }): string {
+  return message.content
+    .flatMap((b) => (b.type === "text" && b.text ? [b.text] : []))
+    .join("")
+    .trim();
+}
+
+/** Ask the specialist to write a fresh quiz. Retries once if it breaks the format rules. */
 export async function generateQuiz(opts: {
-  professor: Professor;
-  module: CourseModule;
+  specialist: Specialist;
+  lesson: Lesson;
   previousQuestions: string[];
 }): Promise<GeneratedQuiz> {
   let lastProblem = "";
@@ -34,51 +32,37 @@ export async function generateQuiz(opts: {
       model: MODEL,
       max_tokens: 16000,
       output_config: { effort: "medium", format: zodOutputFormat(GeneratedQuizSchema) },
-      system: professorSystem(opts.professor),
+      system: specialistSystem(opts.specialist),
       messages: [{ role: "user", content: buildQuizPrompt(opts) }],
       ...fallbackParams(),
     });
-    if (response.stop_reason === "refusal") throw new AiRefusalError("The professor declined to write this quiz.");
+    if (response.stop_reason === "refusal") throw new AiRefusalError("The specialist declined to write this quiz.");
     const quiz = response.parsed_output;
-    if (!quiz) {
-      lastProblem = "unparseable output";
-      continue;
-    }
-    const problem = validateQuiz(quiz);
-    if (!problem) return quiz;
-    lastProblem = problem;
+    lastProblem = quiz ? (validateQuiz(quiz) ?? "") : "unparseable output";
+    if (quiz && !lastProblem) return quiz;
   }
   throw new Error(`Quiz generation failed: ${lastProblem}`);
 }
 
-export async function gradeShortAnswer(opts: {
-  professor: Professor;
-  module: CourseModule;
-  question: string;
-  rubric: string;
-  sampleAnswer: string;
-  studentAnswer: string;
-}): Promise<ShortAnswerGrade> {
-  // Nothing to grade: skip the API call.
-  if (!opts.studentAnswer.trim()) {
-    return { points: 0, feedback: "No answer was given for this question." };
-  }
-  const response = await anthropic.beta.messages.parse({
+export async function writeMemoryNotes(opts: {
+  specialist: Specialist;
+  notes: string | null;
+  transcript: string;
+}): Promise<string | null> {
+  const response = await anthropic.beta.messages.create({
     model: MODEL,
     max_tokens: 4000,
-    output_config: { effort: "low", format: zodOutputFormat(ShortAnswerGradeSchema) },
-    system: professorSystem(opts.professor),
-    messages: [{ role: "user", content: buildShortAnswerGradingPrompt(opts) }],
+    output_config: { effort: "low" },
+    system: specialistSystem(opts.specialist),
+    messages: [{ role: "user", content: buildMemoryPrompt(opts) }],
     ...fallbackParams(),
   });
-  if (response.stop_reason === "refusal" || !response.parsed_output) {
-    return { points: 0, feedback: "The professor could not grade this answer automatically." };
-  }
-  return response.parsed_output;
+  if (response.stop_reason === "refusal") return null;
+  return textOf(response) || null;
 }
 
 export async function writeNewsBriefing(opts: {
-  professor: Professor;
+  specialist: Specialist;
   today: string;
   headlines: Headline[];
 }): Promise<string> {
@@ -86,14 +70,29 @@ export async function writeNewsBriefing(opts: {
     model: MODEL,
     max_tokens: 16000,
     output_config: { effort: "medium" },
-    system: professorSystem(opts.professor),
+    system: specialistSystem(opts.specialist),
     messages: [{ role: "user", content: buildNewsBriefingPrompt(opts) }],
     ...fallbackParams(),
   });
   const message = await stream.finalMessage();
-  if (message.stop_reason === "refusal") throw new AiRefusalError("The professor declined to write today's briefing.");
-  return message.content
-    .flatMap((block) => (block.type === "text" ? [block.text] : []))
-    .join("")
-    .trim();
+  if (message.stop_reason === "refusal") throw new AiRefusalError("The specialist declined to write today's briefing.");
+  return textOf(message);
+}
+
+export async function writeFeedBatch(opts: {
+  today: string;
+  poster: Specialist;
+  replier: Specialist | null;
+  headlines: Headline[];
+  recentPosts: string[];
+}): Promise<FeedBatch | null> {
+  const response = await anthropic.beta.messages.parse({
+    model: MODEL,
+    max_tokens: 8000,
+    output_config: { effort: "low", format: zodOutputFormat(FeedBatchSchema) },
+    messages: [{ role: "user", content: buildFeedPrompt(opts) }],
+    ...fallbackParams(),
+  });
+  if (response.stop_reason === "refusal") return null;
+  return response.parsed_output;
 }

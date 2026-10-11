@@ -1,10 +1,6 @@
-export type Level = "Beginner" | "Intermediate" | "Advanced";
+export type Accent = "amber" | "sky" | "emerald" | "violet";
 
-export const LEVELS: Level[] = ["Beginner", "Intermediate", "Advanced"];
-
-export type Accent = "amber" | "violet" | "emerald" | "sky" | "rose";
-
-/** An entry on a professor's curated reading list. Cited in lessons as [S1], [S2], ... */
+/** An entry on a specialist's reading list. Cited in lessons as [S1], [S2], ... */
 export interface Source {
   title: string;
   publisher: string;
@@ -12,25 +8,29 @@ export interface Source {
   url?: string;
 }
 
-export interface CourseModule {
+export interface Lesson {
   slug: string;
   title: string;
-  level: Level;
   summary: string;
   objectives: string[];
   keyTerms: string[];
 }
 
-export interface Professor {
+export type ZoneId = "crypto-desk" | "credit-desk" | "bank-vault" | "mindset-lounge" | "news-wall" | "coffee-bar" | "whiteboard";
+
+export interface Specialist {
   slug: string;
-  number: number;
+  /** Fictional single-word name. Never a real person's name. */
   name: string;
-  course: string;
+  role: string;
+  topic: string;
   emoji: string;
   accent: Accent;
   tagline: string;
-  /** Voice and teaching style, injected into the system prompt. */
-  persona: string;
-  modules: CourseModule[];
+  /** Voice and teaching style, injected into prompts. */
+  personality: string;
+  /** Zones visited in order, one per schedule slot, looping. */
+  schedule: ZoneId[];
+  lessons: Lesson[];
   sources: Source[];
 }

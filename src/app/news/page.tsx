@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
-import { NEWS_PROFESSOR } from "@/content";
+import { NEWS_SPECIALIST } from "@/content";
 import { Markdown } from "@/components/Markdown";
 import { Disclaimer } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
 import { linkHeadlineCitations } from "@/lib/citations";
 import { todayUtc } from "@/lib/data";
-import { db } from "@/lib/db";
-import type { Headline } from "@/lib/news";
+import { getLatestBriefing } from "@/lib/briefing";
 import { RefreshBriefingButton } from "./RefreshBriefingButton";
 
 export const metadata: Metadata = { title: "Daily Briefing" };
@@ -17,8 +16,8 @@ export default async function NewsPage() {
   await requireUser("/news");
   const today = todayUtc();
   // Show today's briefing, or the most recent one while today's hasn't been written.
-  const briefing = await db.newsBriefing.findFirst({ orderBy: { day: "desc" } });
-  const headlines = (briefing?.headlines ?? []) as unknown as Headline[];
+  const briefing = await getLatestBriefing();
+  const headlines = briefing?.headlines ?? [];
   const isToday = briefing?.day === today;
 
   return (
@@ -26,7 +25,7 @@ export default async function NewsPage() {
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="space-y-1">
           <p className="text-sm text-muted">
-            {NEWS_PROFESSOR.emoji} {NEWS_PROFESSOR.name} · {NEWS_PROFESSOR.course}
+            {NEWS_SPECIALIST.emoji} {NEWS_SPECIALIST.name} · {NEWS_SPECIALIST.role}
           </p>
           <h1 className="font-serif text-3xl font-semibold">Daily Briefing</h1>
           {briefing && (
@@ -42,14 +41,14 @@ export default async function NewsPage() {
 
       {!briefing ? (
         <div className="rounded-xl border border-dashed border-line p-10 text-center text-muted">
-          No briefing yet. Ask {NEWS_PROFESSOR.name} to write today&apos;s, using the latest crypto and macro headlines.
+          No briefing yet. Ask {NEWS_SPECIALIST.name} to write today&apos;s, using the latest crypto and macro headlines.
         </div>
       ) : (
         <div className="grid gap-8 lg:grid-cols-[1fr_340px]">
           <article className="rounded-xl border border-line bg-surface p-6">
             <Markdown>{linkHeadlineCitations(briefing.summary, headlines.map((h) => h.url))}</Markdown>
             <p className="mt-6 border-t border-line pt-3 text-xs text-muted">
-              Written by an AI professor from the headlines listed here. Read the original articles before relying on any
+              Written by an AI specialist from the headlines listed here. Read the original articles before relying on any
               detail. Education only, not financial advice.
             </p>
           </article>

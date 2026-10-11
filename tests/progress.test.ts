@@ -1,45 +1,43 @@
 import { describe, expect, it } from "vitest";
-import { PROFESSORS } from "@/content";
-import { completedCount, isUnlocked, moduleStatuses, nextModuleIndex, type ProgressRow } from "@/lib/progress";
+import { SPECIALISTS } from "@/content";
+import { completedCount, isUnlocked, lessonStatuses, nextLessonIndex, type ProgressRow } from "@/lib/progress";
 
-const prof = PROFESSORS[0];
-const row = (moduleSlug: string, status: string, professorSlug = prof.slug): ProgressRow => ({
-  professorSlug,
-  moduleSlug,
+const spec = SPECIALISTS[0];
+const row = (lessonSlug: string, status: string, specialistSlug = spec.slug): ProgressRow => ({
+  specialistSlug,
+  lessonSlug,
   status,
   bestScore: 0,
   attempts: 0,
   completedAt: null,
 });
 
-describe("module unlocking", () => {
-  it("opens only the first module for a new student", () => {
-    const statuses = moduleStatuses(prof, []);
+describe("lesson unlocking", () => {
+  it("opens only the first lesson for a new student", () => {
+    const statuses = lessonStatuses(spec, []);
     expect(statuses[0]).toBe("available");
     expect(statuses.slice(1).every((s) => s === "locked")).toBe(true);
   });
 
-  it("unlocks the next module once the previous quiz is passed", () => {
-    const rows = [row(prof.modules[0].slug, "COMPLETED")];
-    expect(moduleStatuses(prof, rows).slice(0, 3)).toEqual(["completed", "available", "locked"]);
-    expect(isUnlocked(prof, 1, rows)).toBe(true);
-    expect(isUnlocked(prof, 2, rows)).toBe(false);
+  it("unlocks the next lesson once the previous quiz is passed", () => {
+    const rows = [row(spec.lessons[0].slug, "COMPLETED")];
+    expect(lessonStatuses(spec, rows).slice(0, 3)).toEqual(["completed", "available", "locked"]);
+    expect(isUnlocked(spec, 1, rows)).toBe(true);
+    expect(isUnlocked(spec, 2, rows)).toBe(false);
   });
 
-  it("keeps the next module locked while the current one is only in progress", () => {
-    const rows = [row(prof.modules[0].slug, "IN_PROGRESS")];
-    expect(moduleStatuses(prof, rows).slice(0, 2)).toEqual(["in_progress", "locked"]);
+  it("keeps the next lesson locked while the current one is only in progress", () => {
+    expect(lessonStatuses(spec, [row(spec.lessons[0].slug, "IN_PROGRESS")]).slice(0, 2)).toEqual(["in_progress", "locked"]);
   });
 
-  it("ignores progress from other professors", () => {
-    const rows = [row(prof.modules[0].slug, "COMPLETED", "someone-else")];
-    expect(completedCount(prof, rows)).toBe(0);
+  it("ignores progress with other specialists", () => {
+    expect(completedCount(spec, [row(spec.lessons[0].slug, "COMPLETED", "someone-else")])).toBe(0);
   });
 
-  it("finds the next module to study", () => {
-    expect(nextModuleIndex(prof, [])).toBe(0);
-    const all = prof.modules.map((m) => row(m.slug, "COMPLETED"));
-    expect(nextModuleIndex(prof, all)).toBeNull();
-    expect(completedCount(prof, all)).toBe(prof.modules.length);
+  it("finds the next lesson to study", () => {
+    expect(nextLessonIndex(spec, [])).toBe(0);
+    const all = spec.lessons.map((l) => row(l.slug, "COMPLETED"));
+    expect(nextLessonIndex(spec, all)).toBeNull();
+    expect(completedCount(spec, all)).toBe(spec.lessons.length);
   });
 });

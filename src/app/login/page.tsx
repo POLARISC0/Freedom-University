@@ -7,8 +7,8 @@ export const metadata: Metadata = { title: "Sign in" };
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const { next } = await searchParams;
-  const nextPath = typeof next === "string" ? next : "/dashboard";
-  if (await getCurrentUser()) redirect(nextPath.startsWith("/") && !nextPath.startsWith("//") ? nextPath : "/dashboard");
+  const nextPath = typeof next === "string" ? next : "/floor";
+  if (await getCurrentUser()) redirect(nextPath.startsWith("/") && !nextPath.startsWith("//") ? nextPath : "/floor");
 
   return (
     <div className="mx-auto max-w-sm space-y-6 pt-10">
