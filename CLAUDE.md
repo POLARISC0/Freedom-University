@@ -20,3 +20,9 @@ Always use Ponytail (`.claude/skills/ponytail/`) for minimal, standard-library-f
 
 - Use Caveman terse mode (`.claude/skills/caveman/`) by default for chat replies. Its own rules keep code, commands and errors verbatim, and use full sentences for warnings, irreversible actions, and anything written to files, commits or PRs.
 - Use Context Mode (`.claude/skills/context-mode/`) to filter verbose command output when its MCP tools (`ctx_execute`, `ctx_execute_file`, `ctx_search`) are available. The context-mode MCP server is not installed in this project yet; until it is, filter verbose output with `grep`, `head` or `tail` instead.
+
+## Design
+
+- Use the `taste` skill (`.claude/skills/taste/`, from the taste-skill plugin) for all UI work.
+- Before finishing any page, check it with the `audit` skill (`.claude/skills/audit/`, from the web-design-guidelines plugin). The separate Vercel `web-design-guidelines` skill is available for a deeper review.
+- Also available: `design-system`, `image-to-code` and `playwright-check`. This project's own tokens and fonts in `src/app/globals.css` and `src/app/layout.tsx` take precedence over the `design-system` skill's default palette and fonts.
