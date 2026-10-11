@@ -68,11 +68,46 @@ body {
   outline: 2px solid #ffffff;
   outline-offset: 4px;
 }
-.world-grid {
-  background-color: #111113;
-  background-image: radial-gradient(rgba(255, 255, 255, 0.09) 1px, transparent 1px);
-  background-size: 22px 22px;
+/* ---- OZ-style light world (home page) ---- */
+.bp-grid {
+  background-color: #f6f7fa;
+  background-image:
+    linear-gradient(rgba(27, 30, 40, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(27, 30, 40, 0.07) 1px, transparent 1px);
+  background-size: 32px 32px;
 }
+.fu-scanlines {
+  pointer-events: none;
+  background: repeating-linear-gradient(to bottom, rgba(10, 12, 20, 0.035) 0 1px, transparent 1px 3px);
+}
+.rainbow-ring {
+  background: conic-gradient(from 0deg, #ff3d8b, #ffc400, #3dff8f, #00c2ff, #b46cff, #ff3d8b);
+}
+.fu-glitch { position: relative; }
+.fu-glitch::before,
+.fu-glitch::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+}
+.fu-glitch::before { color: #ff3d8b; transform: translate(3px, -2px); animation: fu-glitch 7s steps(1) infinite; }
+.fu-glitch::after { color: #00c2ff; transform: translate(-3px, 2px); animation: fu-glitch 7s steps(1) 0.12s infinite; }
+@keyframes fu-glitch {
+  0%, 93%, 100% { opacity: 0; clip-path: inset(0 0 0 0); }
+  94% { opacity: 0.8; clip-path: inset(10% 0 55% 0); }
+  96% { opacity: 0.8; clip-path: inset(60% 0 8% 0); }
+}
+@keyframes fu-flicker {
+  0% { opacity: 0; }
+  10% { opacity: 1; }
+  14% { opacity: 0.2; }
+  20% { opacity: 1; }
+  26% { opacity: 0.5; }
+  32%, 100% { opacity: 1; }
+}
+.fu-flicker { animation: fu-flicker 0.9s linear 1 both; }
 @keyframes fu-float {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-7px); }
@@ -93,7 +128,7 @@ body {
 .fu-dash { stroke-dasharray: 1.5 2.5; animation: fu-dash 3s linear infinite; }
 .fu-pulse { animation: fu-pulse 1.8s ease-out infinite; }
 @media (prefers-reduced-motion: reduce) {
-  .fu-float, .fu-marquee, .fu-dash, .fu-pulse { animation: none; }
+  .fu-float, .fu-marquee, .fu-dash, .fu-pulse, .fu-flicker, .fu-glitch::before, .fu-glitch::after { animation: none; }
 }
 
 /* Markdown rendered from professors and the news briefing. */

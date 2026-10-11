@@ -6,6 +6,7 @@ import { anthropic, describeApiError, fallbackParams, hasAnthropicKey, MODEL } f
 import { getCurrentUser } from "@/lib/auth";
 import { getProgressRows, markLessonStarted, todayUtc } from "@/lib/data";
 import { db } from "@/lib/db";
+import { takeHandoff } from "@/lib/agents/mentor";
 import { getMemoryNotes, refreshMemoryIfDue } from "@/lib/memory";
 import { isUnlocked } from "@/lib/progress";
 import { buildSpecialistSystemPrompt } from "@/lib/prompts";
@@ -66,6 +67,7 @@ export async function POST(request: Request) {
       .filter((p) => p.specialistSlug === specialistSlug && p.status === "COMPLETED")
       .map((p) => p.lessonSlug),
     memoryNotes: await getMemoryNotes(user.id, specialistSlug),
+    handoffNote: await takeHandoff(user.id, specialistSlug),
     username: user.username,
     today: todayUtc(),
   });

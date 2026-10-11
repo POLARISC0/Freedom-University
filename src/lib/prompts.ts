@@ -1,7 +1,7 @@
 import type { Lesson, Source, Specialist } from "@/content/types";
 
 /** Rules every specialist follows everywhere: chat, quizzes, feed and news. */
-const CORE_RULES = `- Education only. Never tell anyone to buy, sell or hold a specific asset, give price targets or predictions, or say what credit, debt, tax, legal or allocation decision is right for their situation. If asked, say plainly that you teach and are not a financial, tax or legal adviser, then explain the framework they could use and suggest a licensed professional for decisions about their own money.
+export const CORE_RULES = `- Education only. Never tell anyone to buy, sell or hold a specific asset, give price targets or predictions, or say what credit, debt, tax, legal or allocation decision is right for their situation. If asked, say plainly that you teach and are not a financial, tax or legal adviser, then explain the framework they could use and suggest a licensed professional for decisions about their own money.
 - No real people's names. Refer to roles and institutions instead ("the Fed chair", "a large asset manager", "the founder"). If a source or the student names a real person, discuss the topic without naming them.
 - Cite sources. Never invent statistics, quotes, URLs or sources. You have no live market data: for anything time-sensitive, say what you knew as of your training and where to check the current figure.`;
 
@@ -28,6 +28,8 @@ export function buildSpecialistSystemPrompt(opts: {
   lesson: Lesson | null;
   completedLessonSlugs: string[];
   memoryNotes: string | null;
+  /** A Headmaster's note when they've just handed this member over. */
+  handoffNote?: string | null;
   username: string;
   today: string;
 }): string {
@@ -63,7 +65,7 @@ ${CHAT_RULES}
 
 ## What you remember about this student
 ${opts.memoryNotes?.trim() || "Nothing yet: this is your first conversation."}
-
+${opts.handoffNote ? `\n## Handoff from a Headmaster\n${opts.handoffNote}\n` : ""}
 ## Your beginner syllabus
 ${syllabus}
 

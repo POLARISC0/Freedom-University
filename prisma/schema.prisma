@@ -21,6 +21,7 @@ model User {
   quizAttempts QuizAttempt[]
   messages     ChatMessage[]
   memories     SpecialistMemory[]
+  handoffs     AgentHandoff[]
 }
 
 model Session {
@@ -101,6 +102,22 @@ model SpecialistMemory {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, specialistSlug])
+}
+
+// A Headmaster handing a member to a mentor. The mentor reads the note on the
+// member's next message, then the handoff is marked taken.
+model AgentHandoff {
+  id        String    @id @default(cuid())
+  userId    String
+  fromAgent String
+  toAgent   String
+  note      String
+  createdAt DateTime  @default(now())
+  takenAt   DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, toAgent, takenAt])
 }
 
 // Shared trading-floor feed, the same for every student.
