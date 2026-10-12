@@ -84,7 +84,7 @@ export function WorldExperience({
       scene = new WorldScene(
         canvasRef.current,
         labelEls.current,
-        districts.map(({ id, color, status, space, theme }) => ({ id, color, status, space, theme })),
+        districts.map(({ id, code, kicker, color, status, space, theme }) => ({ id, code, kicker, color, status, space, theme })),
         headmasters.map(({ id, color, space }) => ({ id, color, space })),
         { onHover: setHovered, onSelect: select },
       );

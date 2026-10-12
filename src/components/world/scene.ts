@@ -4,9 +4,12 @@ import { buildEnvironment, type Env } from "./environments";
 import { buildIsland } from "./islands";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { glowTexture, seeded, solid, type Updater } from "./kit";
+import { hudRing, type Linework, orbit, rail } from "./lines";
 
 export interface SceneDistrict {
   id: string;
+  code: string;
+  kicker: string;
   color: string;
   status: "open" | "live" | "soon";
   space: { x: number; y: number; z: number };
@@ -174,18 +177,31 @@ export class WorldScene {
       this.scene.add(grid);
     }
 
-    // Orbit rings around downtown.
-    const orbits = [13, 19, 26].map((radius, i) => {
-      const curve = new THREE.EllipseCurve(0, 0, radius, radius * 0.62, 0, Math.PI * 2);
-      const geo = new THREE.BufferGeometry().setFromPoints(curve.getPoints(160).map((p) => new THREE.Vector3(p.x, 0, p.y)));
-      const line = new THREE.LineLoop(geo, new THREE.LineDashedMaterial({ color: "#7b8496", dashSize: 0.6, gapSize: 0.5, transparent: true, opacity: 0.45 }));
-      line.computeLineDistances();
-      line.rotation.x = (i - 1) * 0.08;
-      line.position.y = -1 + i * 0.6;
-      this.scene.add(line);
-      return line;
+    // Orbit lines around downtown: a cyan and a yellow one drawn as crisp thin tubes, and a dashed outer one.
+    const outer = new THREE.LineLoop(
+      new THREE.BufferGeometry().setFromPoints(new THREE.EllipseCurve(0, 0, 26, 26 * 0.62).getPoints(160).map((p) => new THREE.Vector3(p.x, 0, p.y))),
+      new THREE.LineDashedMaterial({ color: "#7b8496", dashSize: 0.6, gapSize: 0.5, transparent: true, opacity: 0.45 }),
+    );
+    outer.computeLineDistances();
+    const orbits = [orbit(13, 0.62, 0.02, "#1FB6FF"), orbit(19, 0.62, 0.022, "#FFC400"), outer];
+    orbits.forEach((o, i) => {
+      o.rotation.x = (i - 1) * 0.08;
+      o.position.y = -1 + i * 0.6;
+      this.scene.add(o);
     });
-    this.updaters.push((t) => orbits.forEach((o, i) => { o.rotation.y = t * 0.015 * (i % 2 ? -1 : 1); }));
+    this.updaters.push((t) => orbits.forEach((o, i) => (o.rotation.y = t * 0.015 * (i % 2 ? -1 : 1))));
+
+    // A big HUD ring framing the world, and the magenta rail cutting across it.
+    const frame = hudRing({ radius: 9, seed: 1, text: "FU://WORLD/01 · 7 DISTRICTS · 2 HEADMASTERS · EDUCATION ONLY · NO FINANCIAL ADVICE · " });
+    frame.group.position.set(2.5, 4, -10);
+    frame.group.rotation.set(-0.12, -0.3, 0.08);
+    this.addLinework(frame);
+    this.addLinework(rail(new THREE.Vector3(-34, -3.2, 16), new THREE.Vector3(34, 2.4, -26)));
+  }
+
+  private addLinework(work: Linework) {
+    this.scene.add(work.group);
+    this.updaters.push(work.update);
   }
 
   private buildDistricts() {
@@ -204,21 +220,36 @@ export class WorldScene {
       this.islands.set(d.id, { group: island.group, base, phase: i * 1.3, scale: island.group.scale.x, bloom: 0 });
       this.updaters.push(island.update);
 
+      // HUD rings around the city and the live district, like targeting overlays.
+      const coords = `${(35.68 + d.space.x / 100).toFixed(4)}N ${(139.69 + d.space.z / 100).toFixed(4)}E`;
+      const hud = d.theme.look === "hexcity" ? { radius: 3.9, tilt: -0.3 } : d.status === "live" ? { radius: 4.8, tilt: -Math.PI / 2 + 0.38 } : null;
+      if (hud) {
+        const ring = hudRing({ radius: hud.radius, seed: i + 2, text: `${d.code} · ${d.kicker.toUpperCase()} · ${coords} · ` });
+        ring.group.position.copy(base).add(new THREE.Vector3(0, 1.1, 0));
+        ring.group.rotation.x = hud.tilt;
+        this.addLinework(ring);
+      }
 
       if (d === downtown) return;
-      // Arc from downtown with a pulse of light travelling along it.
+      // A bundle of curves from downtown, one thicker, with a pulse of light travelling along it.
       const to = new THREE.Vector3(base.x, base.y + 0.8, base.z);
       const mid = from.clone().lerp(to, 0.5).add(new THREE.Vector3(0, 4 + i * 0.3, 0));
       const curve = new THREE.QuadraticBezierCurve3(from, mid, to);
-      const lineMat = new THREE.LineBasicMaterial({ color: d.color, transparent: true, opacity: 0.55 });
-      this.scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(curve.getPoints(60)), lineMat));
+      const lineMat = new THREE.MeshBasicMaterial({ color: d.color, transparent: true, opacity: 0.8 });
+      this.scene.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 64, 0.03, 5), lineMat));
+      const strands = [1, 2, 3, 4].map((k) => {
+        const off = new THREE.Vector3(Math.sin(k * 2.1), Math.cos(k * 1.3), Math.sin(k * 0.7)).multiplyScalar(0.5 + k * 0.25);
+        return new THREE.QuadraticBezierCurve3(from, mid.clone().add(off), to);
+      });
+      const strandMat = new THREE.LineBasicMaterial({ color: d.color, transparent: true, opacity: 0.45 });
+      strands.forEach((c) => this.scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(c.getPoints(60)), strandMat)));
       const pulse = new THREE.Sprite(new THREE.SpriteMaterial({ map: glow, color: d.color, transparent: true, depthWrite: false }));
       pulse.scale.setScalar(0.9);
       this.scene.add(pulse);
       this.updaters.push((t) => {
         const k = (t * 0.18 + i * 0.17) % 1;
         pulse.position.copy(curve.getPoint(k));
-        lineMat.opacity = 0.35 + 0.3 * Math.sin(t * 2 + i);
+        lineMat.opacity = 0.6 + 0.3 * Math.sin(t * 2 + i);
       });
     });
   }

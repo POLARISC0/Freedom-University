@@ -24,6 +24,7 @@ import {
   type Updater,
   V3,
 } from "./kit";
+import { hudRing } from "./lines";
 
 /** The surroundings you fly into. Everything in it fades in and out with `materials`. */
 export type Env = { root: THREE.Group; materials: THREE.Material[]; update: Updater };
@@ -42,6 +43,10 @@ export function buildEnvironment(look: Look): Env {
   };
   const anywhere = (w: number, h: number, d: number) => new V3((r() - 0.5) * w, (r() - 0.5) * h, (r() - 0.5) * d);
   const clearOfCamera = (p: THREE.Vector3, room = 3.5) => p.distanceTo(CAMERA_SPOT) > room;
+  const lines = (points: THREE.Vector3[], color: string, opacity: number) =>
+    new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(points), fade(new THREE.LineBasicMaterial({ color, opacity })));
+  /** Moving linework added alongside each look's own animation. */
+  const extras: Updater[] = [];
   let update: Updater = () => {};
 
   if (look === "shards") {
@@ -66,7 +71,12 @@ export function buildEnvironment(look: Look): Env {
     const shards = Array.from({ length: 260 }, () => ({ v: anywhere(2, 1.4, 2).normalize().multiplyScalar(0.6 + r() * 1.4), item: { p: anywhere(30, 16, 26), r: new THREE.Euler(r() * 6, r() * 6, 0), s: new V3(1, 1, 1).multiplyScalar(0.4 + r() * 1.2) } as Item }));
     const flying = instanced(new THREE.TetrahedronGeometry(0.16), fade(solid()), shards.map((s) => s.item));
     const panes = instanced(new THREE.PlaneGeometry(1.2, 0.75), fade(glass("#3E9BFF", 0.7)), Array.from({ length: 30 }, () => ({ p: anywhere(34, 14, 24), r: new THREE.Euler(0, r() * 6, (r() - 0.5) * 0.5) })));
-    root.add(sweep, flying, panes);
+    const rays: THREE.Vector3[] = [];
+    for (let i = 0; i < 50; i++) {
+      const d = anywhere(2, 1.6, 2).normalize();
+      rays.push(core.clone().addScaledVector(d, 3), core.clone().addScaledVector(d, 14 + r() * 10));
+    }
+    root.add(sweep, flying, panes, lines(rays, "#1E2C4A", 0.25));
     update = (t, dt) => {
       sweep.rotation.y = t * 0.03;
       shards.forEach((s, i) => {
@@ -98,6 +108,14 @@ export function buildEnvironment(look: Look): Env {
     const ringItems = Array.from({ length: 14 }, (_, i) => ({ p: anywhere(30, 12, 24), r: new THREE.Euler(r() * 6, r() * 6, 0), s: new V3(1, 1, 1).multiplyScalar(0.6 + r() * 1.4), c: new THREE.Color(["#FF5A1F", "#FFC400", "#FF3D8B", "#3DFF8F"][i % 4]) }) as Item);
     const rings = instanced(new THREE.TorusGeometry(1.2, 0.03, 6, 64), fade(new THREE.MeshBasicMaterial({ opacity: 0.9 })), ringItems);
     root.add(city, rings);
+    for (const [radius, x, y, z, rx, ry] of [[7, 0, 1.5, -2, -0.4, 0.3], [11, -3, 3, -8, -0.15, -0.5], [15, 6, 5, -14, 0.1, 0.4]]) {
+      const hud = hudRing({ radius, seed: radius, text: "D-02/ATL · BANKING & THE SYSTEM · RESERVES · RATES · SETTLEMENT · " });
+      hud.group.position.set(x, y, z);
+      hud.group.rotation.set(rx, ry, 0);
+      hud.materials.forEach(fade);
+      root.add(hud.group);
+      extras.push(hud.update);
+    }
     update = (t, dt) => {
       city.rotation.y = t * 0.012;
       ringItems.forEach((it, i) => {
@@ -119,7 +137,14 @@ export function buildEnvironment(look: Look): Env {
     const streaks = instanced(BOX, fade(glass("#ffffff", 0.75, true)), lanes.map((l) => l.item));
     const pods = Array.from({ length: 8 }, () => ({ v: 6 + r() * 8, item: { p: new V3((r() - 0.5) * 44, -1.5 + r() * 5, -2 - r() * 4), r: new THREE.Euler(0, 0, Math.PI / 2), s: new V3(1, 1.4 + r() * 2, 1) } as Item }));
     const capsules = instanced(new THREE.CapsuleGeometry(0.25, 1, 4, 16), fade(glass("#BFF5DD", 0.6)), pods.map((p) => p.item));
-    root.add(streaks, capsules);
+    const rules: THREE.Vector3[] = [];
+    for (let i = 0; i < 70; i++) {
+      const y = (r() - 0.5) * 12;
+      const z = -3 - r() * 8;
+      const x0 = -22 + r() * 10;
+      rules.push(new V3(x0, y, z), new V3(x0 + 20 + r() * 24, y, z));
+    }
+    root.add(streaks, capsules, lines(rules, "#0E6B5A", 0.35));
     const run = (list: { v: number; item: Item }[], mesh: THREE.InstancedMesh, dt: number) => {
       list.forEach((l, i) => {
         l.item.p.x += l.v * dt;
@@ -144,6 +169,11 @@ export function buildEnvironment(look: Look): Env {
     const birds = instanced(birdGeometry(0.4), fade(new THREE.MeshBasicMaterial({ side: THREE.DoubleSide })), flock.map((f) => f.item));
     const rising = Array.from({ length: 140 }, () => ({ item: { p: anywhere(34, 18, 24), s: new V3(1, 1, 1).multiplyScalar(0.04 + r() * 0.14) } as Item, v: 0.2 + r() * 0.5 }));
     const bubbles = instanced(new THREE.SphereGeometry(1, 10, 8), fade(solid()), rising.map((b) => b.item));
+    for (const [radius, y] of [[7, 3], [10.5, 4.5]]) {
+      const circle = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(new THREE.EllipseCurve(0, 0, radius, radius).getPoints(200)), fade(new THREE.LineBasicMaterial({ color: "#ffffff", opacity: 0.9 })));
+      circle.position.set(-2, y, -9);
+      root.add(circle);
+    }
     root.add(new THREE.Mesh(tubes(fan, 0.025, 64), fade(new THREE.MeshBasicMaterial({ color: "#E2A400" }))), new THREE.Mesh(tubes(low, 0.02, 64), fade(new THREE.MeshBasicMaterial({ color: "#FF8A7A" }))), birds, bubbles);
     const fly = new THREE.Object3D();
     const ahead = new V3();
@@ -205,6 +235,13 @@ export function buildEnvironment(look: Look): Env {
       ),
       fade(new THREE.LineBasicMaterial({ color: "#6E86FF", opacity: 0.7 })),
     );
+    const railMat = fade(new THREE.MeshBasicMaterial({ color: "#3FD4FF", opacity: 0.8 }));
+    for (let k = 0; k < 6; k++) {
+      const railRing = new THREE.Mesh(new THREE.TorusGeometry(6 + k * 2, 0.03 + (k % 2) * 0.03, 6, 160), railMat);
+      railRing.rotation.x = Math.PI / 2;
+      railRing.position.y = -1.2 + (k % 3) * 0.25;
+      root.add(railRing);
+    }
     root.add(panes, rims);
     update = (t) => bands.forEach((b) => (b.band.rotation.y = t * b.speed));
   } else if (look === "arena") {
@@ -263,5 +300,6 @@ export function buildEnvironment(look: Look): Env {
     m.opacity = 0;
   });
   root.visible = false;
-  return { root, materials, update };
+  const all = [update, ...extras];
+  return { root, materials, update: (t, dt) => all.forEach((u) => u(t, dt)) };
 }
