@@ -1,6 +1,6 @@
 // Freedom University data model.
-// Curriculum (professors, modules, objectives) lives in src/content as typed code;
-// the database stores everything that belongs to a student plus cached news.
+// Specialists and their lessons live in src/content as typed code; the database
+// stores everything that belongs to a student, plus the shared floor feed and news.
 
 generator client {
   provider = "prisma-client"
@@ -17,9 +17,11 @@ model User {
   createdAt DateTime @default(now())
 
   sessions     Session[]
-  progress     ModuleProgress[]
+  progress     LessonProgress[]
   quizAttempts QuizAttempt[]
   messages     ChatMessage[]
+  memories     SpecialistMemory[]
+  handoffs     AgentHandoff[]
 }
 
 model Session {
@@ -35,57 +37,102 @@ model Session {
   @@index([userId])
 }
 
-model ModuleProgress {
-  id            String    @id @default(cuid())
-  userId        String
-  professorSlug String
-  moduleSlug    String
-  // "IN_PROGRESS" once the student opens the module, "COMPLETED" after passing its quiz.
-  status        String    @default("IN_PROGRESS")
-  bestScore     Int       @default(0) // percent, 0-100
-  attempts      Int       @default(0)
-  startedAt     DateTime  @default(now())
-  completedAt   DateTime?
-  updatedAt     DateTime  @updatedAt
+model LessonProgress {
+  id             String    @id @default(cuid())
+  userId         String
+  specialistSlug String
+  lessonSlug     String
+  // "IN_PROGRESS" once the student opens the lesson, "COMPLETED" after passing its quiz.
+  status         String    @default("IN_PROGRESS")
+  bestScore      Int       @default(0) // percent, 0-100
+  attempts       Int       @default(0)
+  startedAt      DateTime  @default(now())
+  completedAt    DateTime?
+  updatedAt      DateTime  @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, professorSlug, moduleSlug])
+  @@unique([userId, specialistSlug, lessonSlug])
   @@index([userId])
 }
 
 model QuizAttempt {
-  id            String    @id @default(cuid())
-  userId        String
-  professorSlug String
-  moduleSlug    String
+  id             String    @id @default(cuid())
+  userId         String
+  specialistSlug String
+  lessonSlug     String
   // Generated quiz including the answer key. Only the server ever reads the key.
-  quiz          Json
-  // Student answers and per-question grading, filled in on submission.
-  answers       Json?
-  grading       Json?
-  score         Int? // percent, 0-100
-  passed        Boolean?
-  createdAt     DateTime  @default(now())
-  submittedAt   DateTime?
+  quiz           Json
+  answers        Json?
+  score          Int? // percent, 0-100
+  passed         Boolean?
+  createdAt      DateTime  @default(now())
+  submittedAt    DateTime?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId, professorSlug, moduleSlug])
+  @@index([userId, specialistSlug, lessonSlug])
 }
 
 model ChatMessage {
-  id            String   @id @default(cuid())
-  userId        String
-  professorSlug String
-  moduleSlug    String
-  role          String // "user" | "assistant"
-  content       String
-  createdAt     DateTime @default(now())
+  id             String   @id @default(cuid())
+  userId         String
+  specialistSlug String
+  // A lesson slug, or "office-hours" for the open chat outside lessons.
+  thread         String
+  role           String // "user" | "assistant"
+  content        String
+  createdAt      DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId, professorSlug, moduleSlug, createdAt])
+  @@index([userId, specialistSlug, thread, createdAt])
+}
+
+// What a specialist remembers about a student across all conversations.
+model SpecialistMemory {
+  id                String   @id @default(cuid())
+  userId            String
+  specialistSlug    String
+  notes             String
+  // Count of the student's messages to this specialist when notes were last updated.
+  messagesAtUpdate  Int      @default(0)
+  updatedAt         DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, specialistSlug])
+}
+
+// A Headmaster handing a member to a mentor. The mentor reads the note on the
+// member's next message, then the handoff is marked taken.
+model AgentHandoff {
+  id        String    @id @default(cuid())
+  userId    String
+  fromAgent String
+  toAgent   String
+  note      String
+  createdAt DateTime  @default(now())
+  takenAt   DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, toAgent, takenAt])
+}
+
+// Shared trading-floor feed, the same for every student.
+model FeedPost {
+  id             String   @id @default(cuid())
+  specialistSlug String
+  content        String
+  // [{ label, url }] sources backing the post.
+  citations      Json
+  // Root post id when this is a reply in a conversation between specialists.
+  threadId       String?
+  createdAt      DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([threadId])
 }
 
 model NewsBriefing {

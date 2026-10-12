@@ -1,0 +1,91 @@
+import type { Specialist } from "../types";
+
+export const nova: Specialist = {
+  slug: "nova",
+  name: "Nova",
+  role: "Crypto Specialist",
+  topic: "Crypto",
+  emoji: "🪙",
+  accent: "amber",
+  tagline: "Bitcoin, Ethereum, XRP, XLM, Solana, stablecoins, market cycles and planning your exit.",
+  personality:
+    "You are energetic and curious, but you are a risk manager first. You explain networks like an engineer and markets like a historian, using plain analogies. You never hype prices; your catchphrase is \"plan the exit before the entry.\"",
+  schedule: ["crypto-desk", "news-wall", "crypto-desk", "coffee-bar", "whiteboard", "crypto-desk", "bank-vault"],
+  lessons: [
+    {
+      slug: "bitcoin-and-ethereum",
+      title: "Bitcoin and Ethereum: The Foundations",
+      summary: "What Bitcoin and Ethereum are, how they differ, and how wallets and keys work.",
+      objectives: [
+        "Explain what Bitcoin is, its 21 million supply cap and how proof of work secures it",
+        "Explain what Ethereum adds: smart contracts, and proof of stake since September 2022",
+        "Explain wallets, private keys and seed phrases, and why a seed phrase must never be shared",
+        "Compare keeping coins on an exchange with self-custody",
+      ],
+      keyTerms: ["blockchain", "proof of work", "proof of stake", "smart contract", "private key", "seed phrase", "self-custody"],
+    },
+    {
+      slug: "xrp-xlm-solana",
+      title: "XRP, XLM and Solana: Payments and Speed",
+      summary: "Networks built for fast payments and high throughput, and the trade-offs they make.",
+      objectives: [
+        "Explain the purpose of the XRP Ledger and XRP as a bridge asset for cross-border payments",
+        "Explain the Stellar network (XLM), its focus on remittances and the role of anchors",
+        "Explain how both use consensus protocols instead of mining",
+        "Explain Solana's design for high throughput and the trade-offs it has faced, such as past network outages",
+        "Distinguish a network's technology from the price of its token",
+      ],
+      keyTerms: ["XRP Ledger", "bridge asset", "Stellar", "anchor", "consensus protocol", "throughput", "network outage"],
+    },
+    {
+      slug: "stablecoins",
+      title: "Stablecoins: Digital Dollars",
+      summary: "How stablecoins hold a peg, what backs them, and what happens when they break.",
+      objectives: [
+        "Classify stablecoins: fiat-backed, crypto-collateralised and algorithmic",
+        "Explain reserves, attestations and redemption",
+        "Explain the 2022 collapse of the TerraUSD algorithmic stablecoin as a warning",
+        "Summarise the GENIUS Act (signed July 2025) as the first US federal framework for payment stablecoins",
+      ],
+      keyTerms: ["peg", "reserves", "attestation", "redemption", "depeg", "algorithmic stablecoin", "GENIUS Act"],
+    },
+    {
+      slug: "market-cycles",
+      title: "Market Cycles and the Halving",
+      summary: "Bull and bear phases, the Bitcoin halving, and the psychology that drives both.",
+      objectives: [
+        "Explain the Bitcoin halving (every 210,000 blocks, most recently April 2024)",
+        "Describe the phases of a cycle: accumulation, markup, distribution, markdown",
+        "Use historical bear-market drawdowns to set realistic expectations",
+        "Explain how leverage and liquidations amplify moves",
+        "Name common biases: FOMO, anchoring, recency bias",
+      ],
+      keyTerms: ["halving", "bull market", "bear market", "drawdown", "leverage", "liquidation", "FOMO"],
+    },
+    {
+      slug: "exit-strategy",
+      title: "Planning an Exit Strategy",
+      summary: "Writing down how and when you take profits or cut risk before emotions take over.",
+      objectives: [
+        "Explain why an exit plan should be written before entering a position",
+        "Compare frameworks: laddered targets, rebalancing bands and time-based selling",
+        "Explain that selling crypto is generally a taxable event in the US",
+        "Recognise off-ramp and scam risks when converting back to cash",
+        "Outline a personal exit-plan template (as education, not advice)",
+      ],
+      keyTerms: ["exit plan", "take-profit ladder", "rebalancing", "capital gains", "off-ramp", "risk management"],
+    },
+  ],
+  sources: [
+    { title: "Bitcoin: A Peer-to-Peer Electronic Cash System (whitepaper)", publisher: "bitcoin.org", url: "https://bitcoin.org/bitcoin.pdf" },
+    { title: "Ethereum Whitepaper and documentation", publisher: "ethereum.org", url: "https://ethereum.org/en/whitepaper/" },
+    { title: "XRP Ledger Documentation", publisher: "XRPL.org", url: "https://xrpl.org/docs" },
+    { title: "Stellar Developer Documentation", publisher: "Stellar Development Foundation", url: "https://developers.stellar.org/docs" },
+    { title: "Solana Documentation", publisher: "Solana Foundation", url: "https://solana.com/docs" },
+    { title: "Controlled supply (Bitcoin issuance schedule)", publisher: "Bitcoin Wiki", url: "https://en.bitcoin.it/wiki/Controlled_supply" },
+    { title: "GENIUS Act (S.1582, 119th Congress)", publisher: "Congress.gov", url: "https://www.congress.gov/bill/119th-congress/senate-bill/1582" },
+    { title: "Understand the Risks of Virtual Currency Trading", publisher: "US Commodity Futures Trading Commission", url: "https://www.cftc.gov/LearnAndProtect/AdvisoriesAndArticles/understand_risks_of_virtual_currency.html" },
+    { title: "What To Know About Cryptocurrency and Scams", publisher: "US Federal Trade Commission", url: "https://consumer.ftc.gov/articles/what-know-about-cryptocurrency-and-scams" },
+    { title: "Digital Assets", publisher: "Internal Revenue Service", url: "https://www.irs.gov/filing/digital-assets" },
+  ],
+};

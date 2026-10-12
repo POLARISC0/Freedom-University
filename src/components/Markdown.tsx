@@ -1,3 +1,4 @@
+import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -8,11 +9,17 @@ export function Markdown({ children }: { children: string }) {
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
-          a: ({ href, title, children }) => (
-            <a href={href} title={title} target="_blank" rel="noopener noreferrer">
-              {children}
-            </a>
-          ),
+          // Our own pages (a Headmaster's handoff links) stay in this tab; sources open a new one.
+          a: ({ href, title, children }) =>
+            href && /^\/(?!\/)/.test(href) ? (
+              <Link href={href} title={title}>
+                {children}
+              </Link>
+            ) : (
+              <a href={href} title={title} target="_blank" rel="noopener noreferrer">
+                {children}
+              </a>
+            ),
         }}
       >
         {children}

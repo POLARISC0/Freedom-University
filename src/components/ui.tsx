@@ -1,13 +1,12 @@
-import type { Accent, Level } from "@/content/types";
-import type { ModuleStatus } from "@/lib/progress";
+import type { Accent } from "@/content/types";
+import type { LessonStatus } from "@/lib/progress";
 
 /** Full class strings per accent so Tailwind can see them at build time. */
-export const ACCENTS: Record<Accent, { bar: string; ring: string }> = {
-  amber: { bar: "bg-amber-500", ring: "border-l-amber-500" },
-  violet: { bar: "bg-violet-500", ring: "border-l-violet-500" },
-  sky: { bar: "bg-sky-500", ring: "border-l-sky-500" },
-  emerald: { bar: "bg-emerald-500", ring: "border-l-emerald-500" },
-  rose: { bar: "bg-rose-500", ring: "border-l-rose-500" },
+export const ACCENTS: Record<Accent, { bar: string; ring: string; dot: string }> = {
+  amber: { bar: "bg-amber-500", ring: "border-l-amber-500", dot: "bg-amber-400 ring-amber-600" },
+  emerald: { bar: "bg-emerald-500", ring: "border-l-emerald-500", dot: "bg-emerald-400 ring-emerald-600" },
+  sky: { bar: "bg-sky-500", ring: "border-l-sky-500", dot: "bg-sky-400 ring-sky-600" },
+  violet: { bar: "bg-violet-500", ring: "border-l-violet-500", dot: "bg-violet-400 ring-violet-600" },
 };
 
 export function ProgressBar({ value, max, accent }: { value: number; max: number; accent: Accent }) {
@@ -30,17 +29,8 @@ export function ProgressBar({ value, max, accent }: { value: number; max: number
   );
 }
 
-export function LevelBadge({ level }: { level: Level }) {
-  const styles: Record<Level, string> = {
-    Beginner: "border-line text-muted",
-    Intermediate: "border-line text-ink",
-    Advanced: "border-brand text-brand",
-  };
-  return <span className={`rounded-full border px-2 py-0.5 text-xs ${styles[level]}`}>{level}</span>;
-}
-
-export function StatusBadge({ status }: { status: ModuleStatus }) {
-  const map: Record<ModuleStatus, { label: string; cls: string }> = {
+export function StatusBadge({ status }: { status: LessonStatus }) {
+  const map: Record<LessonStatus, { label: string; cls: string }> = {
     completed: { label: "✓ Completed", cls: "text-success" },
     in_progress: { label: "In progress", cls: "text-brand" },
     available: { label: "Ready to start", cls: "text-ink" },
@@ -53,8 +43,8 @@ export function StatusBadge({ status }: { status: ModuleStatus }) {
 export function Disclaimer() {
   return (
     <p className="rounded-lg border border-line bg-brand-soft px-4 py-2.5 text-sm">
-      <strong>Education only.</strong> Professors teach concepts and frameworks. They never give personalised
-      investment, tax or legal advice. Talk to a licensed professional about your own money.
+      <strong>Education only.</strong> The specialists teach concepts and frameworks. They never trade, and never give
+      personalised investment, credit, tax or legal advice. Talk to a licensed professional about your own money.
     </p>
   );
 }
