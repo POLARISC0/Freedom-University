@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import type { Look } from "@/content/world";
+import { type Look, WORLD_SKY } from "@/content/world";
 import { buildEnvironment, type Env } from "./environments";
 import { buildIsland } from "./islands";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
@@ -28,7 +28,6 @@ export interface SceneCallbacks {
   onSelect(id: string): void;
 }
 
-const WORLD_SKY = { top: "#F7F8FB", bottom: "#E5E9F1" };
 const HOME_CAMERA = new THREE.Vector3(0, 8.5, 24);
 const HOME_TARGET = new THREE.Vector3(0, 0.5, 0);
 
@@ -57,12 +56,8 @@ export class WorldScene {
   private targetTo = HOME_TARGET.clone();
   private target = HOME_TARGET.clone();
   private flight = 1;
-  private skyTop = new THREE.Color(WORLD_SKY.top);
-  private skyBottom = new THREE.Color(WORLD_SKY.bottom);
-  private skyTopTo = this.skyTop.clone();
-  private skyBottomTo = this.skyBottom.clone();
-  private skyCanvas = document.createElement("canvas");
-  private skyTexture: THREE.CanvasTexture;
+  /** The sky itself is CSS behind a transparent canvas; the scene only fades far things into its colour. */
+  private fogTo = new THREE.Color(WORLD_SKY.bottom);
   private raf = 0;
   private timer = new THREE.Timer();
   private resizeObserver: ResizeObserver;
@@ -77,15 +72,11 @@ export class WorldScene {
     private cb: SceneCallbacks,
   ) {
     this.labels = labels;
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: "high-performance" });
+    this.renderer.setClearColor(0x000000, 0);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
 
-    this.skyCanvas.width = 2;
-    this.skyCanvas.height = 256;
-    this.skyTexture = new THREE.CanvasTexture(this.skyCanvas);
-    this.paintSky();
-    this.scene.background = this.skyTexture;
     this.scene.fog = new THREE.Fog(WORLD_SKY.bottom, 26, 70);
 
     // High-key anime light: a white sun for the lit band and a saturated blue fill, so half-lit faces
@@ -123,8 +114,7 @@ export class WorldScene {
     this.focused = id;
     const p = new THREE.Vector3(d.space.x, d.space.y, d.space.z);
     this.startFlight(p.clone().add(new THREE.Vector3(0, 2.6, 8.5)), p.clone().add(new THREE.Vector3(0, 0.9, 0)));
-    this.skyTopTo.set(d.theme.skyTop);
-    this.skyBottomTo.set(d.theme.skyBottom);
+    this.fogTo.set(d.theme.skyBottom);
     let env = this.envs.get(d.theme.look);
     if (!env) {
       env = buildEnvironment(d.theme.look);
@@ -141,8 +131,7 @@ export class WorldScene {
   unfocus() {
     this.focused = null;
     this.startFlight(HOME_CAMERA.clone(), HOME_TARGET.clone());
-    this.skyTopTo.set(WORLD_SKY.top);
-    this.skyBottomTo.set(WORLD_SKY.bottom);
+    this.fogTo.set(WORLD_SKY.bottom);
   }
 
   dispose() {
@@ -366,16 +355,6 @@ export class WorldScene {
 
   // ----- frame -----
 
-  private paintSky() {
-    const g = this.skyCanvas.getContext("2d")!;
-    const grad = g.createLinearGradient(0, 0, 0, 256);
-    grad.addColorStop(0, `#${this.skyTop.getHexString()}`);
-    grad.addColorStop(1, `#${this.skyBottom.getHexString()}`);
-    g.fillStyle = grad;
-    g.fillRect(0, 0, 2, 256);
-    if (this.skyTexture) this.skyTexture.needsUpdate = true;
-  }
-
   private resize() {
     const parent = this.canvas.parentElement ?? this.canvas;
     const w = parent.clientWidth;
@@ -442,16 +421,7 @@ export class WorldScene {
     this.camera.lookAt(this.target);
 
     // Scene shifts into the focused district's look.
-    if (!this.skyTop.equals(this.skyTopTo) || !this.skyBottom.equals(this.skyBottomTo)) {
-      this.skyTop.lerp(this.skyTopTo, slow);
-      this.skyBottom.lerp(this.skyBottomTo, slow);
-      if (Math.abs(this.skyTop.r - this.skyTopTo.r) + Math.abs(this.skyTop.g - this.skyTopTo.g) + Math.abs(this.skyTop.b - this.skyTopTo.b) < 0.003) {
-        this.skyTop.copy(this.skyTopTo);
-        this.skyBottom.copy(this.skyBottomTo);
-      }
-      this.paintSky();
-      (this.scene.fog as THREE.Fog).color.copy(this.skyBottom);
-    }
+    (this.scene.fog as THREE.Fog).color.lerp(this.fogTo, slow);
     if (this.activeEnv) {
       const want = this.focused ? 1 : 0;
       this.envFade = THREE.MathUtils.lerp(this.envFade, want, slow);

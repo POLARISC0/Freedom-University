@@ -26,6 +26,9 @@ export interface District {
   theme: { look: Look; skyTop: string; skyBottom: string };
 }
 
+/** The world's own sky, before you fly into a district: a near-white, slightly grey gradient. */
+export const WORLD_SKY = { top: "#F7F8FB", bottom: "#E5E9F1" };
+
 export type Look = "shards" | "hexcity" | "transit" | "sky" | "stack" | "arena" | "wing";
 
 type MentorLook = Pick<District, "color" | "ink" | "glyph" | "desktop" | "phone" | "code" | "space" | "theme">;

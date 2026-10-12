@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
-import type { District } from "@/content/world";
+import { type District, WORLD_SKY } from "@/content/world";
 import { openHeadmaster } from "./OpenHeadmasterButton";
+import { CollageBack, CollageFront } from "./WorldCollage";
 import type { WorldScene } from "./scene";
 import { WorldHeadline } from "./WorldHeadline";
 
@@ -121,12 +122,27 @@ export function WorldExperience({
     <section
       className="relative h-[calc(100svh-3.5rem)] min-h-[600px] overflow-clip bg-[#F6F7FA] text-[#0B0B0C]"
       onPointerMove={(e) => {
-        if (!coordsRef.current) return;
         const r = e.currentTarget.getBoundingClientRect();
-        coordsRef.current.textContent = `X ${((e.clientX - r.left) / r.width - 0.5).toFixed(3)}  Y ${(0.5 - (e.clientY - r.top) / r.height).toFixed(3)}`;
+        const x = (e.clientX - r.left) / r.width - 0.5;
+        const y = 0.5 - (e.clientY - r.top) / r.height;
+        // Collage layers drift against the pointer through these variables.
+        e.currentTarget.style.setProperty("--px", x.toFixed(3));
+        e.currentTarget.style.setProperty("--py", y.toFixed(3));
+        if (coordsRef.current) coordsRef.current.textContent = `X ${x.toFixed(3)}  Y ${y.toFixed(3)}`;
       }}
     >
+      {/* The sky: the world's own gradient, with each district's crossfading in over it when you fly there. */}
+      <div className="absolute inset-0" style={{ background: `linear-gradient(${WORLD_SKY.top}, ${WORLD_SKY.bottom})` }} />
+      {districts.map((d) => (
+        <div
+          key={d.id}
+          className={`absolute inset-0 transition-opacity duration-[1400ms] ${d.id === focused ? "opacity-100" : "opacity-0"}`}
+          style={{ background: `linear-gradient(${d.theme.skyTop}, ${d.theme.skyBottom})` }}
+        />
+      ))}
+      <CollageBack focused={focused} />
       <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" aria-label="Freedom University world. Use the district buttons to explore." />
+      <CollageFront focused={focused} districts={districts} />
       <div className="fu-scanlines absolute inset-0" />
 
       {/* Collage HUD */}

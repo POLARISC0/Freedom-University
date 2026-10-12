@@ -83,6 +83,45 @@ body {
 .rainbow-ring {
   background: conic-gradient(from 0deg, #ff3d8b, #ffc400, #3dff8f, #00c2ff, #b46cff, #ff3d8b);
 }
+/* ---- Collage: flat graphic pieces laid under and over the 3D world ---- */
+/* No typed @property (syntax "<color>") in this file: the dev CSS pipeline silently drops the rules after it. */
+.fu-dots {
+  background-image: radial-gradient(rgba(27, 30, 40, 0.22) 1px, transparent 1.3px);
+  background-size: 22px 22px;
+}
+.fu-sky-panel {
+  background:
+    radial-gradient(closest-side, rgb(255 255 255 / 0.95), rgb(255 255 255 / 0)) 14% 80% / 40% 30% no-repeat,
+    radial-gradient(closest-side, rgb(255 255 255 / 0.9), rgb(255 255 255 / 0)) 42% 94% / 54% 34% no-repeat,
+    radial-gradient(closest-side, rgb(255 255 255 / 0.85), rgb(255 255 255 / 0)) 76% 64% / 30% 22% no-repeat,
+    radial-gradient(closest-side, rgb(255 255 255 / 0.7), rgb(255 255 255 / 0)) 96% 90% / 42% 30% no-repeat,
+    radial-gradient(closest-side, rgb(255 255 255 / 0.55), rgb(255 255 255 / 0)) 60% 28% / 22% 12% no-repeat,
+    linear-gradient(172deg, #1366d6, #3e9bff 55%, #a9d5ff);
+}
+.fu-barcode {
+  background: repeating-linear-gradient(90deg, #0b0b0c 0 2px, transparent 2px 4px, #0b0b0c 4px 5px, transparent 5px 8px, #0b0b0c 8px 11px, transparent 11px 13px);
+}
+.fu-reg { position: absolute; width: 18px; height: 18px; }
+.fu-reg::before, .fu-reg::after { content: ""; position: absolute; background: rgba(11, 11, 12, 0.55); }
+.fu-reg::before { left: 50%; top: 0; bottom: 0; width: 1px; }
+.fu-reg::after { top: 50%; left: 0; right: 0; height: 1px; }
+/* Horizontal motion streaks, smeared like glass passing at speed. */
+.fu-streaks {
+  background:
+    linear-gradient(90deg, transparent, rgb(14 107 90 / 0.5) 25%, rgb(14 107 90 / 0.12) 70%, transparent) 0 18% / 100% 2.5% no-repeat,
+    linear-gradient(90deg, transparent 10%, rgb(25 195 125 / 0.35) 45%, transparent) 0 31% / 100% 6% no-repeat,
+    linear-gradient(90deg, transparent, rgb(11 61 51 / 0.55) 20%, rgb(11 61 51 / 0.1) 55%, transparent) 0 47% / 100% 1.2% no-repeat,
+    linear-gradient(90deg, transparent 30%, rgb(255 255 255 / 0.9) 60%, transparent) 0 55% / 100% 7% no-repeat,
+    linear-gradient(90deg, transparent, rgb(94 217 162 / 0.4) 35%, transparent 80%) 0 72% / 100% 4% no-repeat,
+    linear-gradient(90deg, transparent 5%, rgb(14 107 90 / 0.35) 50%, transparent) 0 88% / 100% 1.5% no-repeat;
+  filter: blur(1.5px);
+}
+/* A crescent: a transparent disc with an inset white shadow. */
+.fu-moon { border-radius: 9999px; box-shadow: inset -0.9em 0.35em 0 0 #ffffff; }
+.fu-outline-type { color: transparent; -webkit-text-stroke: 1.5px #0b0b0c; }
+/* Collage layers drift against the pointer: back layers one way, front layers the other. */
+.fu-par-back { transform: translate3d(calc(var(--px, 0) * -10px), calc(var(--py, 0) * 6px), 0); }
+.fu-par-front { transform: translate3d(calc(var(--px, 0) * 18px), calc(var(--py, 0) * -10px), 0); }
 .fu-glitch { position: relative; }
 .fu-glitch::before,
 .fu-glitch::after {

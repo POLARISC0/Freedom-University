@@ -2,6 +2,7 @@ import Link from "next/link";
 import { DISTRICTS, type District } from "@/content/world";
 import { HEADMASTERS, MENTORS } from "@/lib/agents/registry";
 import { OpenHeadmasterButton } from "./OpenHeadmasterButton";
+import { MANIFESTO } from "./WorldCollage";
 import { WorldHeadline } from "./WorldHeadline";
 
 /** Layered translucent blocks: a still version of a floating island. */
@@ -54,6 +55,23 @@ export function WorldStatic() {
               </span>
             </OpenHeadmasterButton>
           ))}
+        </div>
+
+        {/* A strip of the flat collage from the 3D world. */}
+        <div className="mt-8 grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end" aria-hidden>
+          <div className="fu-sky-panel relative h-28 sm:h-36">
+            <p className="font-wide absolute bottom-3 left-4 text-4xl font-black tracking-tight text-[#0B0B0C] lowercase sm:text-5xl">learn.</p>
+          </div>
+          <div className="font-mono text-[9px] leading-[1.5] tracking-wider text-black/70 uppercase">
+            {MANIFESTO.map((l) => (
+              <p key={l}>{l}</p>
+            ))}
+            <div className="mt-3 flex items-center gap-2">
+              <span className="h-2.5 w-28 bg-[#0B0B0C]" />
+              <span className="h-2.5 w-8 bg-[#0B0B0C]" />
+              <span className="fu-barcode h-4 w-20" />
+            </div>
+          </div>
         </div>
 
         {/* Map on tablets and up */}
