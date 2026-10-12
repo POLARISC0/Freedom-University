@@ -2,14 +2,15 @@ import * as THREE from "three";
 import type { Look } from "@/content/world";
 import { buildEnvironment, type Env } from "./environments";
 import { buildIsland } from "./islands";
-import { glowTexture, seeded, shadowTexture, type Updater } from "./kit";
+import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
+import { glowTexture, seeded, solid, type Updater } from "./kit";
 
 export interface SceneDistrict {
   id: string;
   color: string;
   status: "open" | "live" | "soon";
   space: { x: number; y: number; z: number };
-  theme: { look: Look; skyTop: string; skyBottom: string; dark?: boolean };
+  theme: { look: Look; skyTop: string; skyBottom: string };
 }
 
 export interface SceneHeadmaster {
@@ -24,7 +25,7 @@ export interface SceneCallbacks {
   onSelect(id: string): void;
 }
 
-const WORLD_SKY = { top: "#FFFFFF", bottom: "#EEF1F6" };
+const WORLD_SKY = { top: "#F7F8FB", bottom: "#E5E9F1" };
 const HOME_CAMERA = new THREE.Vector3(0, 8.5, 24);
 const HOME_TARGET = new THREE.Vector3(0, 0.5, 0);
 
@@ -84,10 +85,15 @@ export class WorldScene {
     this.scene.background = this.skyTexture;
     this.scene.fog = new THREE.Fog(WORLD_SKY.bottom, 26, 70);
 
-    this.scene.add(new THREE.HemisphereLight("#ffffff", "#c9d1e0", 1.25));
-    const sun = new THREE.DirectionalLight("#ffffff", 1.4);
-    sun.position.set(6, 12, 8);
+    // High-key anime light: a white sun for the lit band and a saturated blue fill, so half-lit faces
+    // go light blue and shadows a clear mid blue. Soft room reflections for the glass.
+    this.scene.add(new THREE.AmbientLight("#5E8BFF", 1.8));
+    const sun = new THREE.DirectionalLight("#ffffff", 2.6);
+    sun.position.set(-4, 12, 9);
     this.scene.add(sun);
+    const pmrem = new THREE.PMREMGenerator(this.renderer);
+    this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    pmrem.dispose();
 
     this.buildBlueprint();
     this.buildDistricts();
@@ -156,10 +162,10 @@ export class WorldScene {
   // ----- build -----
 
   private buildBlueprint() {
-    const floor = new THREE.GridHelper(200, 100, "#b9c2d3", "#d9dfea");
+    const floor = new THREE.GridHelper(200, 100, "#c9d1e0", "#e3e8f1");
     floor.position.y = -6;
     floor.rotation.x = 0.03;
-    const back = new THREE.GridHelper(200, 60, "#c3cad8", "#e1e5ee");
+    const back = new THREE.GridHelper(200, 60, "#cfd5e2", "#e8ebf2");
     back.rotation.x = Math.PI / 2 - 0.25; // tilting into the distance
     back.position.set(0, 10, -45);
     for (const grid of [floor, back]) {
@@ -183,7 +189,6 @@ export class WorldScene {
   }
 
   private buildDistricts() {
-    const shadow = shadowTexture();
     const glow = glowTexture();
     const downtown = this.districts.find((d) => d.status === "live") ?? this.districts[0];
     const from = new THREE.Vector3(downtown.space.x, downtown.space.y + 1, downtown.space.z);
@@ -199,10 +204,6 @@ export class WorldScene {
       this.islands.set(d.id, { group: island.group, base, phase: i * 1.3, scale: island.group.scale.x, bloom: 0 });
       this.updaters.push(island.update);
 
-      const sh = new THREE.Mesh(new THREE.PlaneGeometry(6, 6), new THREE.MeshBasicMaterial({ map: shadow, transparent: true, depthWrite: false }));
-      sh.rotation.x = -Math.PI / 2;
-      sh.position.set(base.x, -5.95, base.z);
-      this.scene.add(sh);
 
       if (d === downtown) return;
       // Arc from downtown with a pulse of light travelling along it.
@@ -225,7 +226,9 @@ export class WorldScene {
   private buildHeadmasters(list: SceneHeadmaster[]) {
     list.forEach((h, i) => {
       const g = new THREE.Group();
-      const core = new THREE.Mesh(new THREE.IcosahedronGeometry(0.75, 1), new THREE.MeshStandardMaterial({ color: h.color, emissive: h.color, emissiveIntensity: 0.35, flatShading: true, roughness: 0.2 }));
+      const facets = new THREE.IcosahedronGeometry(0.75, 1);
+      facets.computeVertexNormals(); // one normal per face: flat facets
+      const core = new THREE.Mesh(facets, solid(h.color));
       g.add(core);
       const halo = new THREE.Mesh(new THREE.TorusGeometry(1.25, 0.035, 8, 96), new THREE.MeshBasicMaterial({ color: "#1b1e28" }));
       halo.rotation.x = Math.PI / 2.4;
@@ -266,7 +269,8 @@ export class WorldScene {
     const positions = new Float32Array(count * 3);
     const colors = new Float32Array(count * 3);
     const r = seeded(42);
-    const palette = ["#FF3D8B", "#00C2FF", "#FFC400", "#3DFF8F", "#B46CFF"].map((c) => new THREE.Color(c));
+    // Mostly pale specks, with the odd saturated one.
+    const palette = ["#FFFFFF", "#CFE3FF", "#FFD6EA", "#C8F7E1", "#FFFFFF", "#CFE3FF", "#FF3D8B", "#00C2FF"].map((c) => new THREE.Color(c));
     for (let i = 0; i < count; i++) {
       positions.set([(r() - 0.5) * 60, (r() - 0.5) * 24, (r() - 0.5) * 50], i * 3);
       palette[i % palette.length].toArray(colors, i * 3);
@@ -356,7 +360,7 @@ export class WorldScene {
     this.raf = requestAnimationFrame(this.loop);
     if (document.hidden) return;
     this.timer.update(now);
-    const dt = Math.min(this.timer.getDelta(), 0.05);
+    const dt = Math.min(this.timer.getDelta(), 0.1);
     const t = this.timer.getElapsed();
 
     // Adaptive quality: drop resolution if frames are consistently slow.

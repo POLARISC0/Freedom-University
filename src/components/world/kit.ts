@@ -39,18 +39,6 @@ export function glowTexture(): THREE.Texture {
   return new THREE.CanvasTexture(c);
 }
 
-export function shadowTexture(): THREE.Texture {
-  const c = document.createElement("canvas");
-  c.width = c.height = 128;
-  const g = c.getContext("2d")!;
-  const grad = g.createRadialGradient(64, 64, 0, 64, 64, 64);
-  grad.addColorStop(0, "rgba(20,24,40,0.35)");
-  grad.addColorStop(1, "rgba(20,24,40,0)");
-  g.fillStyle = grad;
-  g.fillRect(0, 0, 128, 128);
-  return new THREE.CanvasTexture(c);
-}
-
 export function paintedTexture(): THREE.Texture {
   const c = document.createElement("canvas");
   c.width = c.height = 256;
@@ -106,12 +94,31 @@ export function rainbowTorus(radius: number, tube: number, opacity = 1): THREE.M
   return new THREE.Mesh(geo, mat);
 }
 
-export function glass(color: string, opacity = 0.5): THREE.MeshStandardMaterial {
-  return new THREE.MeshStandardMaterial({ color, transparent: true, opacity, roughness: 0.15, metalness: 0.05, side: THREE.DoubleSide, depthWrite: false });
+/** Glossy glass that catches the room reflections. Thick stacks keep `depthWrite` so they don't shuffle. */
+export function glass(color: string, opacity = 0.5, depthWrite = false): THREE.MeshStandardMaterial {
+  return new THREE.MeshStandardMaterial({ color, transparent: true, opacity, roughness: 0.06, metalness: 0.25, side: THREE.DoubleSide, depthWrite });
 }
 
-export function solid(color = "#ffffff", extra: THREE.MeshStandardMaterialParameters = {}): THREE.MeshStandardMaterial {
-  return new THREE.MeshStandardMaterial({ color, roughness: 0.45, ...extra });
+let ramp: THREE.DataTexture | null = null;
+
+/** Flat tones for the cel-shaded look: faces turned from the sun are shadow, side faces half-lit, the rest lit. */
+function toonRamp(): THREE.DataTexture {
+  if (!ramp) {
+    ramp = new THREE.DataTexture(new Uint8Array([31, 31, 31, 255, 31, 31, 31, 255, 140, 140, 140, 255, 255, 255, 255, 255]), 4, 1, THREE.RGBAFormat);
+    ramp.minFilter = ramp.magFilter = THREE.NearestFilter;
+    ramp.needsUpdate = true;
+  }
+  return ramp;
+}
+
+/** Cel-shaded surface: flat light and shadow bands, with shadows tinted blue by the sky light. */
+export function solid(color = "#ffffff", extra: THREE.MeshToonMaterialParameters = {}): THREE.MeshToonMaterial {
+  return new THREE.MeshToonMaterial({ color, gradientMap: toonRamp(), ...extra });
+}
+
+/** Thin dark-blue ink lines, as drawn over the white strands of an anime burst. */
+export function ink(opacity = 0.5): THREE.LineBasicMaterial {
+  return new THREE.LineBasicMaterial({ color: "#1E2C4A", transparent: true, opacity });
 }
 
 /** One instance of a shape: where it sits, how it turns, its size and colour. */

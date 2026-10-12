@@ -9,6 +9,7 @@ import {
   glass,
   hexGeometry,
   hexTiles,
+  ink,
   instanced,
   type Item,
   pick,
@@ -55,13 +56,15 @@ export function buildEnvironment(look: Look): Env {
         const start = core.clone().addScaledVector(dir, 2.4);
         return new THREE.CatmullRomCurve3([0, 0.35, 0.7, 1].map((k) => start.clone().addScaledVector(dir, len * k).addScaledVector(bend, k * k)));
       });
+    const sweepShape = ribbons(burst(64, 14, 7), 0.6, 3);
     const sweep = new THREE.Group();
     sweep.add(
-      new THREE.Mesh(ribbons(burst(64, 14, 7), 0.6, 3).geo, fade(solid("#ffffff", { side: THREE.DoubleSide, roughness: 0.3, emissive: "#ffffff", emissiveIntensity: 0.15 }))),
-      new THREE.LineSegments(strokes(burst(90, 12, 8)), fade(new THREE.LineBasicMaterial({ color: "#2b4a7a", opacity: 0.4 }))),
+      new THREE.Mesh(sweepShape.geo, fade(solid("#ffffff", { side: THREE.DoubleSide }))),
+      new THREE.LineSegments(sweepShape.edges, fade(ink(0.6))),
+      new THREE.LineSegments(strokes(burst(90, 12, 8)), fade(ink(0.4))),
     );
     const shards = Array.from({ length: 260 }, () => ({ v: anywhere(2, 1.4, 2).normalize().multiplyScalar(0.6 + r() * 1.4), item: { p: anywhere(30, 16, 26), r: new THREE.Euler(r() * 6, r() * 6, 0), s: new V3(1, 1, 1).multiplyScalar(0.4 + r() * 1.2) } as Item }));
-    const flying = instanced(new THREE.TetrahedronGeometry(0.16), fade(solid("#ffffff", { flatShading: true, emissive: "#ffffff", emissiveIntensity: 0.4 })), shards.map((s) => s.item));
+    const flying = instanced(new THREE.TetrahedronGeometry(0.16), fade(solid()), shards.map((s) => s.item));
     const panes = instanced(new THREE.PlaneGeometry(1.2, 0.75), fade(glass("#3E9BFF", 0.7)), Array.from({ length: 30 }, () => ({ p: anywhere(34, 14, 24), r: new THREE.Euler(0, r() * 6, (r() - 0.5) * 0.5) })));
     root.add(sweep, flying, panes);
     update = (t, dt) => {
@@ -89,7 +92,7 @@ export function buildEnvironment(look: Look): Env {
       debris.push(...p.debris);
       blocks.push(...cityBlocks(p.tops, r, 0.8, 0.7));
     }
-    const tileMat = fade(solid("#ffffff", { roughness: 0.55 }));
+    const tileMat = fade(solid());
     const city = new THREE.Group();
     city.add(instanced(hexGeometry(), tileMat, tiles), instanced(hexGeometry(), tileMat, debris), instanced(BOX, fade(solid()), blocks));
     const ringItems = Array.from({ length: 14 }, (_, i) => ({ p: anywhere(30, 12, 24), r: new THREE.Euler(r() * 6, r() * 6, 0), s: new V3(1, 1, 1).multiplyScalar(0.6 + r() * 1.4), c: new THREE.Color(["#FF5A1F", "#FFC400", "#FF3D8B", "#3DFF8F"][i % 4]) }) as Item);
@@ -106,14 +109,14 @@ export function buildEnvironment(look: Look): Env {
     };
   } else if (look === "transit") {
     // Sterling: a corridor of glass slats streaking past on every wall, with pods racing through.
-    const palette = ["#FFFFFF", "#FFFFFF", "#D4F8E8", "#A8F0CF", "#19C37D", "#0E6B5A", "#0B3D33"];
+    const palette = ["#FFFFFF", "#FFFFFF", "#FFFFFF", "#E2FAEE", "#BDF3DA", "#5ED9A2", "#19C37D", "#0E6B5A", "#0B3D33"];
     const lanes = Array.from({ length: 360 }, () => {
       const wall = Math.floor(r() * 3);
       const p = wall === 0 ? new V3(0, 3.2 + r() * 4, (r() - 0.5) * 16) : wall === 1 ? new V3(0, -2.5 - r() * 4, (r() - 0.5) * 16) : new V3(0, (r() - 0.5) * 7, -4 - r() * 6);
       p.x = (r() - 0.5) * 44;
       return { v: 4 + r() * 12, item: { p, s: new V3(2 + r() * 10, 0.03 + r() * 0.12, wall === 2 ? 0.05 : 0.2 + r() * 1.4), c: new THREE.Color(pick(r, palette)) } as Item };
     });
-    const streaks = instanced(BOX, fade(new THREE.MeshStandardMaterial({ opacity: 0.75, roughness: 0.1, metalness: 0.1 })), lanes.map((l) => l.item));
+    const streaks = instanced(BOX, fade(glass("#ffffff", 0.75, true)), lanes.map((l) => l.item));
     const pods = Array.from({ length: 8 }, () => ({ v: 6 + r() * 8, item: { p: new V3((r() - 0.5) * 44, -1.5 + r() * 5, -2 - r() * 4), r: new THREE.Euler(0, 0, Math.PI / 2), s: new V3(1, 1.4 + r() * 2, 1) } as Item }));
     const capsules = instanced(new THREE.CapsuleGeometry(0.25, 1, 4, 16), fade(glass("#BFF5DD", 0.6)), pods.map((p) => p.item));
     root.add(streaks, capsules);
@@ -140,7 +143,7 @@ export function buildEnvironment(look: Look): Env {
     const flock = Array.from({ length: 60 }, (_, i) => ({ curve: fan[(i * 7) % fan.length], off: r(), speed: 0.012 + r() * 0.015, item: { p: new V3(), c: new THREE.Color(i % 4 ? "#F2C230" : "#FFFFFF") } as Item }));
     const birds = instanced(birdGeometry(0.4), fade(new THREE.MeshBasicMaterial({ side: THREE.DoubleSide })), flock.map((f) => f.item));
     const rising = Array.from({ length: 140 }, () => ({ item: { p: anywhere(34, 18, 24), s: new V3(1, 1, 1).multiplyScalar(0.04 + r() * 0.14) } as Item, v: 0.2 + r() * 0.5 }));
-    const bubbles = instanced(new THREE.SphereGeometry(1, 10, 8), fade(solid("#ffffff", { emissive: "#ffffff", emissiveIntensity: 0.4 })), rising.map((b) => b.item));
+    const bubbles = instanced(new THREE.SphereGeometry(1, 10, 8), fade(solid()), rising.map((b) => b.item));
     root.add(new THREE.Mesh(tubes(fan, 0.025, 64), fade(new THREE.MeshBasicMaterial({ color: "#E2A400" }))), new THREE.Mesh(tubes(low, 0.02, 64), fade(new THREE.MeshBasicMaterial({ color: "#FF8A7A" }))), birds, bubbles);
     const fly = new THREE.Object3D();
     const ahead = new V3();
@@ -163,8 +166,8 @@ export function buildEnvironment(look: Look): Env {
     };
   } else if (look === "stack") {
     // Trading Floor: a vortex of slabs around you, turning in bands, crowded with avatars, walled by glass hexagons.
-    const blues = ["#5B6CFF", "#7A8CFF", "#9AA9FF", "#4655E6", "#7FD3FF", "#B9C4FF"];
-    const slabMat = fade(new THREE.MeshStandardMaterial({ opacity: 0.8, roughness: 0.2 }));
+    const blues = ["#6F7DFF", "#8E9BFF", "#AAB6FF", "#5E6CF0", "#8FD8FF", "#C5CEFF"];
+    const slabMat = fade(glass("#ffffff", 0.7, true));
     const crowdMat = fade(solid());
     const bubbleMat = fade(new THREE.PointsMaterial({ map: bubbleTexture(), size: 0.5, depthWrite: false, alphaTest: 0.05 }));
     const bands = [0.05, -0.035, 0.025, -0.06].map((speed) => {
@@ -238,7 +241,7 @@ export function buildEnvironment(look: Look): Env {
     shape.quadraticCurveTo(0.3, 1, 0, 2.2);
     shape.quadraticCurveTo(-0.2, 1, 0, 0);
     const feathers = Array.from({ length: 220 }, () => ({ v: new V3((r() - 0.5) * 0.5, (r() - 0.5) * 0.3, 3 + r() * 4), item: { p: anywhere(30, 16, 26), r: new THREE.Euler(r() * 6, r() * 6, r() * 6), s: new V3(1, 1, 1).multiplyScalar(0.4 + r() * 0.8) } as Item }));
-    const flock = instanced(new THREE.ShapeGeometry(shape), fade(solid("#ffffff", { side: THREE.DoubleSide, emissive: "#ffffff", emissiveIntensity: 0.5 })), feathers.map((f) => f.item));
+    const flock = instanced(new THREE.ShapeGeometry(shape), fade(solid("#ffffff", { side: THREE.DoubleSide })), feathers.map((f) => f.item));
     const ring = rainbowTorus(7, 0.12, 0.9);
     fade(ring.material as THREE.Material);
     root.add(flock, ring);

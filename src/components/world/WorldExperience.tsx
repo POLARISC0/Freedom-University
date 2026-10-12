@@ -116,7 +116,6 @@ export function WorldExperience({
   if (!use3D) return <>{children}</>;
 
   const active = districts.find((d) => d.id === focused);
-  const darkScene = active?.theme.dark;
 
   return (
     <section
@@ -134,16 +133,16 @@ export function WorldExperience({
       <div className={`pointer-events-none absolute top-8 left-8 transition-opacity duration-500 ${focused ? "opacity-0" : "opacity-100"}`}>
         <WorldHeadline compact />
       </div>
-      <div className={`pointer-events-none absolute top-8 right-8 text-right font-mono text-[10px] leading-5 tracking-widest uppercase ${darkScene ? "text-white/70" : "text-black/55"}`}>
+      <div className="pointer-events-none absolute top-8 right-8 text-right font-mono text-[10px] leading-5 tracking-widest uppercase text-black/55">
         <p>{clock}</p>
         <p>World 01 · 7 districts · 2 headmasters</p>
         <p className="inline-block -rotate-2 bg-[#FFC400] px-1.5 text-black">No financial advice</p>
       </div>
-      <div className={`pointer-events-none absolute bottom-6 left-8 font-mono text-[10px] tracking-widest uppercase ${darkScene ? "text-white/70" : "text-black/55"}`}>
+      <div className="pointer-events-none absolute bottom-6 left-8 font-mono text-[10px] tracking-widest uppercase text-black/55">
         <span ref={coordsRef}>X 0.000  Y 0.000</span>
         <span className="ml-4">Cam {focused ? `→ ${active?.code}` : "orbit"}</span>
       </div>
-      <p className={`pointer-events-none absolute right-8 bottom-6 font-mono text-[10px] tracking-widest uppercase ${darkScene ? "text-white/70" : "text-black/55"}`}>
+      <p className="pointer-events-none absolute right-8 bottom-6 font-mono text-[10px] tracking-widest uppercase text-black/55">
         {focused ? "Esc or Back to return" : "Move to look around · Click a district to fly in"}
       </p>
       {!ready && <p className="absolute inset-0 m-auto h-4 w-48 text-center font-mono text-[10px] tracking-widest text-black/60 uppercase">Loading world…</p>}

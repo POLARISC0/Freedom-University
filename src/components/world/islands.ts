@@ -9,6 +9,7 @@ import {
   glass,
   hexGeometry,
   hexTiles,
+  ink,
   instanced,
   type Item,
   merge,
@@ -52,7 +53,7 @@ export function buildIsland(look: Look, color: string): Island {
   let update: Updater = () => {};
   const plate = (tint: string, rings: number, accent = color) => {
     const p = hexTiles({ rings, tint, accent, seed: seedOf(look) + rings });
-    const mat = solid("#ffffff", { roughness: 0.55 });
+    const mat = solid();
     g.add(layer(instanced(hexGeometry(), mat, p.tiles), -0.15, 1.14), layer(instanced(hexGeometry(), mat, p.debris), -0.6, 1.45));
     return p;
   };
@@ -70,12 +71,14 @@ export function buildIsland(look: Look, color: string): Island {
         const len = reach * (0.6 + r() * 0.8);
         return new THREE.CatmullRomCurve3([0, 0.35, 0.7, 1].map((k) => core.clone().addScaledVector(dir, len * k).addScaledVector(bend, k * k)));
       });
-    const strands = new THREE.Mesh(ribbons(burstCurves(36, 2.6, 1.8), 0.2, 2.4).geo, solid("#ffffff", { side: THREE.DoubleSide, roughness: 0.3, emissive: "#ffffff", emissiveIntensity: 0.12 }));
-    const hair = new THREE.LineSegments(strokes(burstCurves(44, 2.2, 2.4)), new THREE.LineBasicMaterial({ color: "#2b4a7a", transparent: true, opacity: 0.35 }));
+    const burstShape = ribbons(burstCurves(36, 2.6, 1.8), 0.2, 2.4);
+    const strands = new THREE.Mesh(burstShape.geo, solid("#ffffff", { side: THREE.DoubleSide }));
+    strands.add(new THREE.LineSegments(burstShape.edges, ink()));
+    const hair = new THREE.LineSegments(strokes(burstCurves(44, 2.2, 2.4)), ink(0.4));
     const around = (min: number, max: number) => new V3(r() - 0.5, 0.2 + r() * 0.8, r() - 0.5).normalize().multiplyScalar(min + r() * (max - min)).add(core);
     const shards = instanced(
       new THREE.TetrahedronGeometry(0.1),
-      solid("#ffffff", { flatShading: true, emissive: "#ffffff", emissiveIntensity: 0.25 }),
+      solid(),
       Array.from({ length: 70 }, () => ({ p: around(0.8, 2.8), r: turn(r), s: grow(0.5 + r() * 1.4) })),
     );
     const panes = instanced(new THREE.PlaneGeometry(0.42, 0.26), glass("#3E9BFF", 0.75), Array.from({ length: 12 }, () => ({ p: around(1.2, 2.6), r: new THREE.Euler(0, r() * 6, (r() - 0.5) * 0.4) })));
@@ -100,7 +103,7 @@ export function buildIsland(look: Look, color: string): Island {
     g.add(layer(instanced(BOX, solid(), band), -0.05, 1.1));
     for (const [x, y, z] of [[2.9, -0.5, -1.4], [-2.7, 0.35, 1.5]]) {
       const sat = hexTiles({ rings: 2, tint: "#C3C8D0", seed: seedOf(look) + Math.round(x * 10) });
-      const tiles = instanced(hexGeometry(), solid("#ffffff", { roughness: 0.55 }), sat.tiles);
+      const tiles = instanced(hexGeometry(), solid(), sat.tiles);
       const city = instanced(BOX, solid(), cityBlocks(sat.tops, r, 0.7, 0.6));
       const piece = holder(-0.2, 1.3, tiles, city);
       piece.position.set(x, y, z);
@@ -119,7 +122,7 @@ export function buildIsland(look: Look, color: string): Island {
   if (look === "transit") {
     // Sterling: a stack of green and white glass slats sliding past each other, with glass pods.
     plate("#9BE8C4", 4);
-    const palette = ["#FFFFFF", "#FFFFFF", "#D4F8E8", "#A8F0CF", "#19C37D", "#0E6B5A"];
+    const palette = ["#FFFFFF", "#FFFFFF", "#FFFFFF", "#E2FAEE", "#BDF3DA", "#5ED9A2", "#19C37D", "#0E6B5A"];
     const slats = Array.from({ length: 150 }, () => ({
       x: (r() - 0.5) * 3.2,
       amp: 0.15 + r() * 0.8,
@@ -127,7 +130,7 @@ export function buildIsland(look: Look, color: string): Island {
       phase: r() * 6,
       item: { p: new V3(0, 0.25 + Math.floor(r() * 22) * 0.1, (r() - 0.5) * 1.8), s: new V3(0.3 + r() ** 1.5 * 3, 0.02 + r() * 0.05, 0.12 + r() * 0.75), c: new THREE.Color(pick(r, palette)) } as Item,
     }));
-    const stack = instanced(BOX, new THREE.MeshStandardMaterial({ transparent: true, opacity: 0.85, roughness: 0.1, metalness: 0.1 }), slats.map((s) => s.item));
+    const stack = instanced(BOX, glass("#ffffff", 0.78, true), slats.map((s) => s.item));
     const pods = [0, 1, 2].map((i) => {
       const pod = new THREE.Mesh(new THREE.CapsuleGeometry(0.2, 1.3, 4, 16), glass("#BFF5DD", 0.55));
       pod.rotation.z = Math.PI / 2;
@@ -157,7 +160,7 @@ export function buildIsland(look: Look, color: string): Island {
     const birds = instanced(birdGeometry(), new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }), flock.map((f) => f.item));
     const bubbles = instanced(
       new THREE.SphereGeometry(1, 10, 8),
-      solid("#ffffff", { emissive: "#ffffff", emissiveIntensity: 0.3 }),
+      solid(),
       Array.from({ length: 26 }, () => ({ p: new V3(1.2 + r() * 1.6, 0.4 + r() * 2.2, -0.6 + r() * 1.4), s: grow(0.025 + r() * 0.06) })),
     );
     g.add(holder(0.3, 1.1, new THREE.Mesh(tubes(fan, 0.012), new THREE.MeshBasicMaterial({ color: "#E2A400" })), birds, bubbles));
@@ -179,7 +182,7 @@ export function buildIsland(look: Look, color: string): Island {
   if (look === "stack") {
     // Trading Floor: a whirling tower of hundreds of blue slabs, with tiny avatars riding them and talking.
     plate("#9FB0FF", 6);
-    const blues = ["#5B6CFF", "#7A8CFF", "#9AA9FF", "#4655E6", "#7FD3FF", "#B9C4FF"];
+    const blues = ["#6F7DFF", "#8E9BFF", "#AAB6FF", "#5E6CF0", "#8FD8FF", "#C5CEFF"];
     const slab = (y: number, rad: number, spin: number, tilt: number, size: THREE.Vector3) => ({
       a: r() * Math.PI * 2,
       rad,
@@ -194,7 +197,7 @@ export function buildIsland(look: Look, color: string): Island {
       return slab(0.12 + y, (0.25 + 2.2 * (1 - y / 4.8) ** 1.3) * (0.45 + r() * 0.65), 0.12 + (1 - y / 4.8) * 0.25, (r() - 0.5) * 0.3, new V3(0.22 + r() * 0.55, 0.025 + r() * 0.03, 0.08 + r() * 0.16));
     });
     for (let i = 0; i < 60; i++) slabs.push(slab(4.6 + r() * 0.7, r() * 0.45, 0.5, (r() - 0.5) * 1.2, new V3(0.12 + r() * 0.18, 0.02, 0.05 + r() * 0.08)));
-    const tower = instanced(BOX, new THREE.MeshStandardMaterial({ transparent: true, opacity: 0.85, roughness: 0.2 }), slabs.map((s) => s.item));
+    const tower = instanced(BOX, glass("#ffffff", 0.72, true), slabs.map((s) => s.item));
     const swirl = slabs.slice(0, 420);
     const riders = Array.from({ length: 90 }, () => ({ on: pick(r, swirl), item: { p: new V3(), c: new THREE.Color(pick(r, AVATAR_COLORS)) } as Item }));
     const crowd = instanced(avatarGeometry(), solid(), riders.map((x) => x.item));
@@ -256,7 +259,7 @@ export function buildIsland(look: Look, color: string): Island {
 
   if (look === "wing") {
     // Shop: three layers of white feathers fanning out and toward you, loose feathers flying off, a rainbow ring.
-    const white = solid("#ffffff", { emissive: "#ffffff", emissiveIntensity: 0.42, roughness: 0.35 });
+    const white = solid();
     const feather = (len: number, belly: number) => {
       const shape = new THREE.Shape();
       shape.moveTo(0, 0);
@@ -274,7 +277,7 @@ export function buildIsland(look: Look, color: string): Island {
       return mesh;
     });
     const loose = Array.from({ length: 36 }, () => ({ v: new V3((r() - 0.5) * 1.2, r() * 0.9, 1.2 + r() * 1.6), life: r(), item: { p: new V3(), r: turn(r), s: grow(0.6 + r() * 0.6) } as Item }));
-    const flying = instanced(new THREE.ShapeGeometry(feather(0.5, 0.08)), new THREE.MeshStandardMaterial({ color: "#ffffff", emissive: "#ffffff", emissiveIntensity: 0.4, side: THREE.DoubleSide }), loose.map((f) => f.item));
+    const flying = instanced(new THREE.ShapeGeometry(feather(0.5, 0.08)), solid("#ffffff", { side: THREE.DoubleSide }), loose.map((f) => f.item));
     g.add(holder(0.2, 1.1, ...layers), holder(0.3, 1.25, flying));
     const ring = rainbowTorus(2.3, 0.07);
     ring.position.set(0, 1.4, -0.3);

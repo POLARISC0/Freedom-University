@@ -23,7 +23,7 @@ export interface District {
   /** Position in the 3D world (units; downtown at the origin). */
   space: { x: number; y: number; z: number };
   /** The look the whole scene shifts into when you fly in. */
-  theme: { look: Look; skyTop: string; skyBottom: string; dark?: boolean };
+  theme: { look: Look; skyTop: string; skyBottom: string };
 }
 
 export type Look = "shards" | "hexcity" | "transit" | "sky" | "stack" | "arena" | "wing";
@@ -41,7 +41,7 @@ const look: Record<string, MentorLook> = {
   },
   sterling: {
     color: "#3DFF8F", ink: "#0B0B0C", glyph: "%", desktop: { x: 19, y: 74 }, phone: { x: 24, y: 71 }, code: "D-03/STR",
-    space: { x: -7.5, y: -1.2, z: 5.5 }, theme: { look: "transit", skyTop: "#9FF0C2", skyBottom: "#F1FFF6" },
+    space: { x: -7.5, y: -1.2, z: 5.5 }, theme: { look: "transit", skyTop: "#CFF7E4", skyBottom: "#FFFFFF" },
   },
   sage: {
     color: "#B46CFF", ink: "#0B0B0C", glyph: "∞", desktop: { x: 81, y: 74 }, phone: { x: 76, y: 71 }, code: "D-04/SGE",
@@ -66,7 +66,7 @@ export const DISTRICTS: District[] = [
     phone: { x: 50, y: 50 },
     code: "D-00/LIVE",
     space: { x: 0, y: 0, z: 0 },
-    theme: { look: "stack", skyTop: "#071A5C", skyBottom: "#2446D8", dark: true },
+    theme: { look: "stack", skyTop: "#DCE2FF", skyBottom: "#FFFFFF" },
   },
   ...SPECIALISTS.map((s): District => ({
     id: s.slug,
