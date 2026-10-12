@@ -30,8 +30,10 @@ import { hudRing } from "./lines";
 export type Env = { root: THREE.Group; materials: THREE.Material[]; update: Updater };
 
 const BOX = new THREE.BoxGeometry(1, 1, 1);
-/** Where the camera sits relative to a district it has flown into: keep it clear. */
-const CAMERA_SPOT = new V3(0, 2.6, 8.5);
+/** Where the camera sits and looks, relative to a district it has flown into: close, with the district left of centre. */
+export const FLY_CAMERA = new V3(1.4, 2.0, 7.0);
+export const FLY_TARGET = new V3(1.9, 1.0, 0);
+const CAMERA_SPOT = FLY_CAMERA;
 
 export function buildEnvironment(look: Look): Env {
   const root = new THREE.Group();

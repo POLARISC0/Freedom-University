@@ -5,8 +5,8 @@ import { HEADMASTERS, MENTORS } from "@/lib/agents/registry";
 
 // Where the two Headmasters float above the districts in the 3D world.
 const HEADMASTER_SPACE: Record<string, { x: number; y: number; z: number }> = {
-  halo: { x: -1.5, y: 7.4, z: -4 },
-  kite: { x: 5.5, y: 8.2, z: -5 },
+  halo: { x: -3.5, y: 7.8, z: -6 },
+  kite: { x: 4.5, y: 8.6, z: -8 },
 };
 
 export default function HomePage() {

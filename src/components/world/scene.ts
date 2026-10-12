@@ -1,9 +1,9 @@
 import * as THREE from "three";
 import { type Look, WORLD_SKY } from "@/content/world";
-import { buildEnvironment, type Env } from "./environments";
+import { buildEnvironment, type Env, FLY_CAMERA, FLY_TARGET } from "./environments";
 import { buildIsland } from "./islands";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
-import { glowTexture, seeded, solid, type Updater } from "./kit";
+import { blurredTexture, glowTexture, seeded, solid, type Updater } from "./kit";
 import { hudRing, type Linework, orbit, rail } from "./lines";
 
 export interface SceneDistrict {
@@ -28,20 +28,22 @@ export interface SceneCallbacks {
   onSelect(id: string): void;
 }
 
-const HOME_CAMERA = new THREE.Vector3(0, 8.5, 24);
-const HOME_TARGET = new THREE.Vector3(0, 0.5, 0);
+// Close and low, inside the world rather than above a map, with a slight roll like a handheld shot.
+const HOME_CAMERA = new THREE.Vector3(1.5, 4.2, 15.5);
+const HOME_TARGET = new THREE.Vector3(0.5, 1.6, -1);
+const ROLL = -0.035;
 
 // ---------- The scene ----------
 
 export class WorldScene {
   private renderer: THREE.WebGLRenderer;
   private scene = new THREE.Scene();
-  private camera = new THREE.PerspectiveCamera(42, 1, 0.1, 200);
+  private camera = new THREE.PerspectiveCamera(50, 1, 0.1, 200);
   private raycaster = new THREE.Raycaster();
   private pointer = new THREE.Vector2(0, 0);
   private pointerActive = false;
   private updaters: Updater[] = [];
-  private islands = new Map<string, { group: THREE.Group; base: THREE.Vector3; phase: number; scale: number; bloom: number }>();
+  private islands = new Map<string, { group: THREE.Group; base: THREE.Vector3; phase: number; scale: number; bloom: number; presence: number }>();
   private headmasters = new Map<string, { group: THREE.Group; base: THREE.Vector3 }>();
   private pickables: THREE.Object3D[] = [];
   private labels: Map<string, HTMLElement>;
@@ -77,7 +79,7 @@ export class WorldScene {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
 
-    this.scene.fog = new THREE.Fog(WORLD_SKY.bottom, 26, 70);
+    this.scene.fog = new THREE.Fog(WORLD_SKY.bottom, 18, 60);
 
     // High-key anime light: a white sun for the lit band and a saturated blue fill, so half-lit faces
     // go light blue and shadows a clear mid blue. Soft room reflections for the glass.
@@ -93,6 +95,7 @@ export class WorldScene {
     this.buildDistricts();
     this.buildHeadmasters(headmasters);
     this.buildParticles();
+    this.buildForeground();
 
     this.camera.position.copy(HOME_CAMERA);
     this.camera.lookAt(HOME_TARGET);
@@ -113,7 +116,7 @@ export class WorldScene {
     if (!d) return;
     this.focused = id;
     const p = new THREE.Vector3(d.space.x, d.space.y, d.space.z);
-    this.startFlight(p.clone().add(new THREE.Vector3(0, 2.6, 8.5)), p.clone().add(new THREE.Vector3(0, 0.9, 0)));
+    this.startFlight(p.clone().add(FLY_CAMERA), p.clone().add(FLY_TARGET));
     this.fogTo.set(d.theme.skyBottom);
     let env = this.envs.get(d.theme.look);
     if (!env) {
@@ -206,7 +209,7 @@ export class WorldScene {
       if (d.status === "soon") island.group.scale.setScalar(0.9);
       this.scene.add(island.group);
       this.pickables.push(island.group.userData.proxy as THREE.Object3D);
-      this.islands.set(d.id, { group: island.group, base, phase: i * 1.3, scale: island.group.scale.x, bloom: 0 });
+      this.islands.set(d.id, { group: island.group, base, phase: i * 1.3, scale: island.group.scale.x, bloom: 0, presence: 1 });
       this.updaters.push(island.update);
 
       // HUD rings around the city and the live district, like targeting overlays.
@@ -312,6 +315,31 @@ export class WorldScene {
     });
   }
 
+  /** Blurred fragments drifting just in front of the lens, around the frame edges: a cheap depth of field. */
+  private buildForeground() {
+    const textures = [blurredTexture("hex"), blurredTexture("strand")];
+    const lens = new THREE.PerspectiveCamera(50, 1.7, 0.1, 200);
+    lens.position.copy(HOME_CAMERA);
+    lens.lookAt(HOME_TARGET);
+    lens.updateMatrixWorld();
+    const r = seeded(77);
+    const edges = [[-0.95, -0.75], [-0.8, 0.85], [0.92, 0.7], [0.85, -0.9], [-0.55, -1], [0.35, 0.95], [1.05, 0.1], [-1.05, 0.2], [0.1, -1.05], [-0.3, 0.98]];
+    edges.forEach(([x, y], i) => {
+      const dir = new THREE.Vector3(x, y, 0.5).unproject(lens).sub(lens.position).normalize();
+      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: textures[i % 2], transparent: true, depthWrite: false, opacity: 0.8, rotation: r() * 6 }));
+      const base = lens.position.clone().addScaledVector(dir, 3.5 + r() * 3.5);
+      sprite.position.copy(base);
+      sprite.scale.setScalar(1.2 + r() * 1.8);
+      this.scene.add(sprite);
+      this.updaters.push((t, dt) => {
+        sprite.position.set(base.x + Math.sin(t * 0.3 + i) * 0.15, base.y + Math.cos(t * 0.25 + i * 2) * 0.12, base.z);
+        sprite.material.rotation += dt * 0.1 * (i % 2 ? 1 : -1);
+        // Only the home view has them; they'd sit in the way of a fly-in.
+        sprite.material.opacity = THREE.MathUtils.lerp(sprite.material.opacity, this.focused ? 0 : 0.8, 1 - Math.exp(-dt * 3));
+      });
+    });
+  }
+
   // ----- interaction -----
 
   private onPointerMove = (e: PointerEvent) => {
@@ -387,11 +415,14 @@ export class WorldScene {
     const slow = 1 - Math.exp(-dt * 3);
 
     // Islands bob and turn, and bloom open on hover: their layers lift apart and spread out.
+    // Flown into one, the others shrink away so the district owns the whole frame.
     this.islands.forEach((isl, id) => {
       isl.bloom = THREE.MathUtils.lerp(isl.bloom, id === this.hovered || id === this.focused ? 1 : 0, ease);
+      isl.presence = THREE.MathUtils.lerp(isl.presence, this.focused && id !== this.focused ? 0 : 1, slow);
+      isl.group.visible = isl.presence > 0.02;
       isl.group.position.y = isl.base.y + Math.sin(t * 0.6 + isl.phase) * 0.28;
       if (!isl.group.userData.facesForward) isl.group.rotation.y += dt * 0.08;
-      isl.group.scale.setScalar(isl.scale * (1 + 0.06 * isl.bloom));
+      isl.group.scale.setScalar(isl.scale * isl.presence * (1 + 0.06 * isl.bloom));
       isl.group.children.forEach((c) => {
         const bloom = c.userData.bloom as { lift: number; spread: number } | undefined;
         const base = c.userData.base as THREE.Vector3 | undefined;
@@ -414,11 +445,12 @@ export class WorldScene {
       this.target.lerpVectors(this.targetFrom, this.targetTo, k);
     }
     const base = new THREE.Vector3().lerpVectors(this.camFrom, this.camTo, k);
-    const sway = this.focused ? 0.6 : 2.2;
+    const sway = this.focused ? 0.5 : 1.6;
     const px = this.pointerActive ? this.pointer.x : Math.sin(t * 0.2) * 0.3;
     const py = this.pointerActive ? this.pointer.y : 0;
     this.camera.position.set(base.x + px * sway, base.y + py * sway * 0.5, base.z);
     this.camera.lookAt(this.target);
+    this.camera.rotateZ(ROLL);
 
     // Scene shifts into the focused district's look.
     (this.scene.fog as THREE.Fog).color.lerp(this.fogTo, slow);
@@ -450,7 +482,10 @@ export class WorldScene {
       const dist = v.distanceTo(this.camera.position);
       v.project(this.camera);
       const hidden = v.z > 1 || (this.focused !== null && id !== this.focused);
-      el.style.transform = `translate3d(${((v.x + 1) / 2) * w}px, ${((1 - v.y) / 2) * h}px, 0) translate(-50%, 0)`;
+      // Islands may bleed off the frame; their labels stay inside it so they can always be clicked.
+      const x = THREE.MathUtils.clamp(((v.x + 1) / 2) * w, 80, w - 80);
+      const y = THREE.MathUtils.clamp(((1 - v.y) / 2) * h, 64, h - 96);
+      el.style.transform = `translate3d(${x}px, ${y}px, 0) translate(-50%, 0)`;
       el.style.opacity = hidden ? "0" : String(THREE.MathUtils.clamp(1.6 - dist / 30, 0.45, 1));
       el.style.filter = dist > 32 ? "blur(0.6px)" : "none";
       el.style.pointerEvents = hidden ? "none" : "auto";

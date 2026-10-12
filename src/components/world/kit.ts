@@ -59,6 +59,32 @@ export function paintedTexture(): THREE.Texture {
   return new THREE.CanvasTexture(c);
 }
 
+/** A soft, out-of-focus fragment for the foreground (a hex tile or a strand), pre-blurred. */
+export function blurredTexture(kind: "hex" | "strand"): THREE.Texture {
+  const c = document.createElement("canvas");
+  c.width = c.height = 128;
+  const g = c.getContext("2d")!;
+  g.filter = "blur(7px)";
+  g.translate(64, 64);
+  if (kind === "hex") {
+    g.fillStyle = "rgba(150, 182, 255, 0.9)";
+    g.beginPath();
+    for (let k = 0; k < 6; k++) g.lineTo(Math.cos((k / 6) * Math.PI * 2) * 40, Math.sin((k / 6) * Math.PI * 2) * 40);
+    g.closePath();
+    g.fill();
+  } else {
+    g.rotate(0.6);
+    g.fillStyle = "rgba(255, 255, 255, 0.95)";
+    g.strokeStyle = "rgba(30, 44, 74, 0.6)";
+    g.lineWidth = 3;
+    g.beginPath();
+    g.ellipse(0, 0, 52, 9, 0, 0, Math.PI * 2);
+    g.fill();
+    g.stroke();
+  }
+  return new THREE.CanvasTexture(c);
+}
+
 /** A small white speech bubble, drawn once and used as a point sprite. */
 export function bubbleTexture(): THREE.Texture {
   const c = document.createElement("canvas");

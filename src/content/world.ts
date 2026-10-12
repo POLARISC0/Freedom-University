@@ -36,19 +36,19 @@ type MentorLook = Pick<District, "color" | "ink" | "glyph" | "desktop" | "phone"
 const look: Record<string, MentorLook> = {
   nova: {
     color: "#FFC400", ink: "#0B0B0C", glyph: "₿", desktop: { x: 20, y: 30 }, phone: { x: 24, y: 30 }, code: "D-01/NVA",
-    space: { x: -9, y: 1.6, z: -3 }, theme: { look: "shards", skyTop: "#3E9BFF", skyBottom: "#E4F3FF" },
+    space: { x: -7.5, y: 1.4, z: -4 }, theme: { look: "shards", skyTop: "#3E9BFF", skyBottom: "#E4F3FF" },
   },
   atlas: {
     color: "#FF5A1F", ink: "#0B0B0C", glyph: "$", desktop: { x: 80, y: 28 }, phone: { x: 76, y: 30 }, code: "D-02/ATL",
-    space: { x: 9.5, y: 2.2, z: -5 }, theme: { look: "hexcity", skyTop: "#C9CDD4", skyBottom: "#F5F6F8" },
+    space: { x: 8, y: 2.4, z: -6 }, theme: { look: "hexcity", skyTop: "#C9CDD4", skyBottom: "#F5F6F8" },
   },
   sterling: {
     color: "#3DFF8F", ink: "#0B0B0C", glyph: "%", desktop: { x: 19, y: 74 }, phone: { x: 24, y: 71 }, code: "D-03/STR",
-    space: { x: -7.5, y: -1.2, z: 5.5 }, theme: { look: "transit", skyTop: "#CFF7E4", skyBottom: "#FFFFFF" },
+    space: { x: -6.5, y: -1.6, z: 6 }, theme: { look: "transit", skyTop: "#CFF7E4", skyBottom: "#FFFFFF" },
   },
   sage: {
     color: "#B46CFF", ink: "#0B0B0C", glyph: "∞", desktop: { x: 81, y: 74 }, phone: { x: 76, y: 71 }, code: "D-04/SGE",
-    space: { x: 8.5, y: -0.6, z: 4.5 }, theme: { look: "sky", skyTop: "#7CC4FF", skyBottom: "#FFF3D6" },
+    space: { x: 3.7, y: -0.9, z: 5 }, theme: { look: "sky", skyTop: "#7CC4FF", skyBottom: "#FFF3D6" },
   },
 };
 
@@ -97,7 +97,7 @@ export const DISTRICTS: District[] = [
     desktop: { x: 50, y: 17 },
     phone: { x: 50, y: 12 },
     code: "D-05/SQR",
-    space: { x: -1, y: 3.4, z: -13 },
+    space: { x: 3.3, y: 5.5, z: -20 },
     theme: { look: "arena", skyTop: "#FFFFFF", skyBottom: "#F2EEFF" },
   },
   {
@@ -116,7 +116,7 @@ export const DISTRICTS: District[] = [
     phone: { x: 50, y: 84 },
     code: "D-06/SHP",
     tagline: "Go beyond.",
-    space: { x: 3, y: -1.8, z: 7 },
+    space: { x: -1.5, y: -1.2, z: 8.8 },
     theme: { look: "wing", skyTop: "#FFFFFF", skyBottom: "#FFEAF3" },
   },
 ];

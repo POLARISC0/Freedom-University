@@ -148,7 +148,7 @@ export function CollageFront({ focused, districts }: { focused: string | null; d
       </div>
 
       <div className={layer(on("atlas"))}>
-        <div className="absolute bottom-[12%] left-[6%] w-72 bg-white ring-1 ring-black/10">
+        <div className="absolute top-[13%] left-[6%] w-72 bg-white ring-1 ring-black/10">
           <p className="bg-[#1FB6FF] px-3 py-1.5 font-mono text-[10px] tracking-[0.2em] text-white uppercase">D-02/ATL · Banking & the system</p>
           <div className="space-y-0.5 px-3 py-2 font-mono text-[10px] tracking-wider uppercase">
             {["Central banks", "The Treasury", "Inflation as a hidden tax", "How banks profit from debt", "Tokenised assets"].map((t, i) => (
@@ -178,24 +178,24 @@ export function CollageFront({ focused, districts }: { focused: string | null; d
         </p>
         <Lines className="top-[16%] left-[60%] text-[11px] font-bold text-[#2D6AE0]" lines={["Habits", "Habits", "Habits"]} />
         <Triangles className="top-[40%] left-[38%]" />
-        <Lines className="bottom-[14%] left-[30%] text-black/70" lines={["From paycheck to assets,", "one habit at a time."]} />
+        <Lines className="top-[62%] left-[44%] text-black/70" lines={["From paycheck to assets,", "one habit at a time."]} />
       </div>
 
       <div className={layer(on("floor"))}>
         <p className="absolute top-[15%] left-[6%] bg-[#E0202E] px-3 py-1 font-mono text-sm font-bold tracking-[0.3em] text-white uppercase">Live</p>
         <Lines className="top-[21%] left-[6%] text-black/70" lines={["4 mentors on the floor", "News feed live", "Education only"]} />
-        <Bars className="bottom-[12%] left-[6%]" />
+        <Bars className="top-[30%] left-[6%]" />
         <Rule className="inset-x-0 top-[9%]" label="D-00/LIVE · downtown" />
       </div>
 
       <div className={layer(on("square"))}>
-        <p className="font-wide fu-outline-type absolute bottom-[14%] left-[6%] text-7xl font-black uppercase">Opening soon</p>
+        <p className="font-wide fu-outline-type absolute top-[13%] left-[6%] text-7xl font-black uppercase">Opening soon</p>
         <Rule className="inset-x-0 top-[9%]" label="D-05/SQR · meet up" />
       </div>
 
       <div className={layer(on("shop"))}>
-        <p className="font-wide absolute bottom-[14%] left-[6%] text-8xl font-black tracking-tight lowercase">go beyond.</p>
-        <Bars className="top-[14%] left-[6%]" />
+        <p className="font-wide absolute top-[13%] left-[6%] text-8xl font-black tracking-tight lowercase">go beyond.</p>
+        <Bars className="top-[30%] left-[6%]" />
         <Rule className="inset-x-0 top-[9%]" label="D-06/SHP · opening soon" />
       </div>
     </div>
