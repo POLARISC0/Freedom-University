@@ -1,0 +1,5 @@
+node_modules/
+# Secrets and live data: never commit these.
+.env
+data/
+keys.json

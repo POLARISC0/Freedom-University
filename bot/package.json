@@ -1,0 +1,19 @@
+{
+  "name": "orion-bot",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Orion, the Discord bot for Incredible Server.",
+  "type": "module",
+  "main": "index.js",
+  "engines": {
+    "node": ">=20.12"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "dry-run": "node index.js --dry-run",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "discord.js": "^14.27.0"
+  }
+}
