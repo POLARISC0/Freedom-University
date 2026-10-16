@@ -3,6 +3,7 @@ import { act } from "./act.js";
 import { DRY_RUN } from "./env.js";
 import { findCategory, findRole, same, TEXT_TYPES } from "./server.js";
 import { answer, LINES, ORION, post } from "./voices.js";
+import { backfillFounding } from "./welcome.js";
 
 // Created top to bottom: Discord puts each new role under the ones before it.
 export const ROLES = [
@@ -56,7 +57,7 @@ const readOnly = (guild) => [
   { id: findRole(guild, "Headmaster").id, allow: [PermissionFlagsBits.SendMessages, PermissionFlagsBits.SendMessagesInThreads, PermissionFlagsBits.CreatePublicThreads] },
 ];
 
-/** Creates whatever is missing. `runner` (the admin who typed /setup) becomes Headmaster. */
+/** Creates whatever is missing. `runner` (the admin who typed /setup) becomes Headmaster, and people already here become founding members. */
 export async function runSetup(guild, runner) {
   await guild.roles.fetch();
   await guild.channels.fetch();
@@ -92,7 +93,7 @@ export async function runSetup(guild, runner) {
   if (runner && !runner.roles.cache.some((r) => same(r.name, "Headmaster"))) {
     await act(`give ${runner.displayName} the Headmaster role`, () => runner.roles.add(findRole(guild, "Headmaster"), reason));
   }
-  return plan;
+  return { ...plan, founding: await backfillFounding(guild, runner) };
 }
 
 const count = (n, one, many) => `${n} ${n === 1 ? one : many}`;
@@ -107,8 +108,8 @@ export const commands = {
       if (!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) return answer(interaction, ORION, LINES.adminOnly("setup"));
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       const plan = await runSetup(interaction.guild, interaction.member);
-      const made = plan.roles.length + plan.categories.length + plan.channels.length;
-      const what = `${count(plan.roles.length, "role", "roles")}, ${count(plan.categories.length, "category", "categories")} and ${count(plan.channels.length, "channel", "channels")}`;
+      const made = plan.roles.length + plan.categories.length + plan.channels.length + plan.founding;
+      const what = `${count(plan.roles.length, "role", "roles")}, ${count(plan.categories.length, "category", "categories")}, ${count(plan.channels.length, "channel", "channels")} and ${count(plan.founding, "founding member", "founding members")}`;
       await answer(interaction, ORION, DRY_RUN ? LINES.setupDry(what) : made ? LINES.setupDone(what) : LINES.setupNothing);
     },
   },

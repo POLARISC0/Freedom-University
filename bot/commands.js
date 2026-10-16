@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import { SlashCommandBuilder } from "discord.js";
 import { act } from "./act.js";
+import { DRY_RUN } from "./env.js";
 import { findChannel, findRole, same } from "./server.js";
 import { load, save } from "./store.js";
 import { answer, GABRIEL, LINES, ORION, post } from "./voices.js";
@@ -46,10 +47,11 @@ export function recordReferral(referrals, referrerId, newcomerId) {
   return { ok: true, count, milestone: count === 1 ? "Crew" : count === 5 ? "Captain" : null, referrals: { ...referrals, [newcomerId]: referrerId } };
 }
 
-async function giveRole(member, roleName, why) {
+/** Gives a member a role by name. In a dry run the role may not exist yet, because /setup only described it. */
+export async function giveRole(member, roleName, why) {
   const role = findRole(member.guild, roleName);
-  if (!role) return console.error(`The ${roleName} role is missing. Run /setup.`);
-  await act(`give ${member.displayName} the ${role.name} role (${why})`, () => member.roles.add(role, `Orion: ${why}`));
+  if (!role && !DRY_RUN) return console.error(`The ${roleName} role is missing. Run /setup.`);
+  await act(`give ${member.displayName} the ${role?.name ?? roleName} role (${why})`, () => member.roles.add(role, `Orion: ${why}`));
 }
 
 export const commands = {

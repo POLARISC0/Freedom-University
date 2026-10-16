@@ -26,10 +26,11 @@ This is for people who don't have a table where money gets explained.
 5. Keep private things private: no account numbers, card details or passwords.
 
 Say hi in #the-table. The Wednesday build is 5:00 to 6:30 pm Central in #wednesday-build.`,
-  greet: (mention, foundingNumber) =>
-    `Welcome to the table, ${mention}. Glad you made it. Have a read of the rules up top, then say hi in #the-table. I've sent you a DM with five quick questions, no wrong answers.` +
+  greet: (mention, foundingNumber, asked) =>
+    `Welcome to the table, ${mention}. Glad you made it. Have a read of the rules up top, then say hi in #the-table.` +
+    (asked ? " I've sent you a DM with five quick questions, no wrong answers." : "") +
     (foundingNumber ? ` You're founding member number ${foundingNumber}. The first 50 keep that for good.` : ""),
-  dmIntro: (name) => `Hey ${name}, Orion here from Incredible Server. Five quick questions so we know where you're at. Short answers are fine, and only the Headmaster sees them. Type skip to pass on any.`,
+  dmIntro: (name) => `Hey ${name}, Orion here from Incredible Server. Five quick questions so we know where you're at. Answer each in one message, short is fine, and only the Headmaster sees them. Type skip to pass on any.`,
   questions: [
     "**1 of 5.** If money weren't a thing, what's the first thing you'd buy?",
     "**2 of 5.** What's stopping you right now?",
@@ -38,6 +39,7 @@ Say hi in #the-table. The Wednesday build is 5:00 to 6:30 pm Central in #wednesd
     "**5 of 5.** Want help getting there? Yes or no is fine.",
   ],
   dmThanks: (name) => `Thanks, ${name}. That's all five. See you at the table. The Wednesday build is 5:00 to 6:30 pm Central.`,
+  summary: (who, answers) => `${who} answered the welcome questions.\n` + LINES.questions.map((q, i) => `${q}\n> ${answers[i]}`).join("\n"),
   referred: (name, count) => `Got it, you brought ${name}. ${count === 1 ? "That's your first one." : `That's ${count} so far.`}`,
   referSelf: "You can't refer yourself.",
   referBot: "Bots don't count.",
@@ -49,9 +51,9 @@ Say hi in #the-table. The Wednesday build is 5:00 to 6:30 pm Central in #wednesd
   win: (name, text) => `Win from **${name}**: ${text}`,
   winPosted: "Posted in #wins. Nice one.",
   adminOnly: (command) => `Only an admin can run /${command}.`,
-  setupDone: (what) => `Done. Created ${what}. You're the Headmaster.`,
-  setupNothing: "Everything was already in place. Nothing new to create.",
-  setupDry: (what) => `Dry run, so nothing changed. /setup would create ${what}. The list is in Orion's terminal.`,
+  setupDone: (what) => `Done. Added ${what}. You're the Headmaster.`,
+  setupNothing: "Everything was already in place. Nothing new to add.",
+  setupDry: (what) => `Dry run, so nothing changed. /setup would add ${what}. The list is in Orion's terminal.`,
 
   // Gabriel
   headsUp: "Build starts in 30. Bring one question about money.",

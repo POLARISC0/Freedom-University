@@ -1,9 +1,10 @@
 // Orion, the Discord bot for Incredible Server.
 import { DISCORD_TOKEN, DRY_RUN, GUILD_ID } from "./env.js";
-import { Client, Events, GatewayIntentBits, MessageFlags } from "discord.js";
+import { Client, Events, GatewayIntentBits, MessageFlags, Partials } from "discord.js";
 import * as members from "./commands.js";
 import * as schedule from "./schedule.js";
 import * as setup from "./setup.js";
+import * as welcome from "./welcome.js";
 
 if (!DISCORD_TOKEN || !GUILD_ID) {
   console.error("Orion needs DISCORD_TOKEN and GUILD_ID. Copy .env.example to a file called .env, fill in both, then start again (README.md, step 5).");
@@ -11,7 +12,12 @@ if (!DISCORD_TOKEN || !GUILD_ID) {
 }
 
 const commands = { ...setup.commands, ...schedule.commands, ...members.commands };
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+// Server Members lets Orion see people join (it's switched on in the Developer Portal).
+// DMs come in on channels Orion hasn't seen since it started, which is what the Channel partial allows.
+const client = new Client({
+  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.DirectMessages],
+  partials: [Partials.Channel],
+});
 
 client.once(Events.ClientReady, async (c) => {
   console.log(`Orion is online as ${c.user.tag}.`);
@@ -38,9 +44,22 @@ client.on(Events.InteractionCreate, async (interaction) => {
   }
 });
 
+client.on(Events.GuildMemberAdd, (member) => {
+  if (member.guild.id !== GUILD_ID) return;
+  welcome.onJoin(member).catch((err) => console.error(`Welcoming ${member.displayName} failed: ${err.message}`));
+});
+
+// Answers to the welcome questions arrive as DMs.
+client.on(Events.MessageCreate, (message) => {
+  const guild = client.guilds.cache.get(GUILD_ID);
+  if (message.guild || message.author.bot || !guild) return;
+  welcome.onDirectMessage(message, guild).catch((err) => console.error(`A DM from ${message.author.username} failed: ${err.message}`));
+});
+
 client.login(DISCORD_TOKEN).catch((err) => {
   // Say what went wrong, never echo the token.
   if (err.code === "TokenInvalid") console.error("Discord didn't accept the token. Copy it again from the Developer Portal into .env.");
+  else if (err.message === "Used disallowed intents") console.error("Discord turned Orion away because Server Members Intent is off. Switch it on in the Developer Portal (README.md, step 2), then start again.");
   else if (["ENOTFOUND", "ECONNREFUSED", "ETIMEDOUT", "EAI_AGAIN"].includes(err.code)) console.error("Orion couldn't reach Discord. Check the internet connection and try again.");
   else console.error(`Orion couldn't connect: ${err.message}`);
   process.exit(1);

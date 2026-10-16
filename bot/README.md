@@ -1,6 +1,6 @@
 # Orion, the bot for Incredible Server
 
-Orion is the helper bot for the Incredible Server Discord. It sets up the channels and roles, says hello to new people and posts the Wednesday build reminders.
+Orion is the helper bot for the Incredible Server Discord. It sets up the channels and roles, welcomes new people and posts the Wednesday build reminders.
 
 You don't need to know how to code to run it. Follow the steps below in order. The first time takes about 20 minutes.
 
@@ -99,6 +99,25 @@ With Orion running, type `/setup` in any channel. Only admins can use it. Orion 
 
 Running `/setup` again is safe. It skips anything that already exists, so nothing gets doubled up. If a channel with the same name already exists somewhere else, Orion leaves it where it is.
 
+People already in the server when you first run `/setup` were here first, so they become founding members, oldest first. Bots and you don't count.
+
+## When someone joins
+
+The moment a new person joins, Orion:
+
+1. **Says hello in #welcome**, by name.
+2. **Gives them Founding Member** if they're one of the first 50, and the hello says which number they are. Someone who leaves and comes back keeps their number. The list is in `bot/data/founding.json`.
+3. **DMs them five questions**, one at a time:
+   - If money weren't a thing, what's the first thing you'd buy?
+   - What's stopping you right now?
+   - Roughly what would it cost a month?
+   - Where do you want to be in five years?
+   - Want help getting there?
+
+They can type `skip` to pass on any. Once all five are in, Orion DMs the answers to you. Some people block DMs from servers. They still get the hello and the role, just not the questions. Someone who comes back after answering all five isn't asked again.
+
+The answers are saved in `bot/data/answers.json`. They're private, so don't share that file.
+
 ## Commands
 
 | Command | Who | What happens |
@@ -142,6 +161,8 @@ Orion has to be running at 4:30 and 5:00 for the posts to go out. If it's restar
 - **"Orion needs DISCORD_TOKEN and GUILD_ID"**: the `.env` file is missing or one value is empty. Go back to step 5.
 - **"Discord didn't accept the token"**: copy the token again (step 2.6) and paste it into `.env`.
 - **"Orion isn't in the server"**: invite it again (step 3), or check the server ID (step 4).
+- **"Server Members Intent is off"**: switch it on in the Developer Portal (step 2.5), then start Orion again.
+- **No hello when someone joins**: check that #welcome exists (run `/setup`) and that Orion is running.
 - **Orion can't give someone a role**: in **Server Settings**, then **Roles**, drag the **Orion** role above Headmaster, Captain, Crew and Founding Member. Discord only lets a bot hand out roles that sit below its own.
 
 ## Keep the token safe
