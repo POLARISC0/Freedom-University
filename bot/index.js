@@ -1,6 +1,7 @@
 // Orion, the Discord bot for Incredible Server.
 import { DISCORD_TOKEN, DRY_RUN, GUILD_ID } from "./env.js";
 import { Client, Events, GatewayIntentBits, MessageFlags } from "discord.js";
+import * as members from "./commands.js";
 import * as schedule from "./schedule.js";
 import * as setup from "./setup.js";
 
@@ -9,7 +10,7 @@ if (!DISCORD_TOKEN || !GUILD_ID) {
   process.exit(1);
 }
 
-const commands = { ...setup.commands, ...schedule.commands };
+const commands = { ...setup.commands, ...schedule.commands, ...members.commands };
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
 client.once(Events.ClientReady, async (c) => {

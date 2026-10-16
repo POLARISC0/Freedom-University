@@ -99,6 +99,33 @@ With Orion running, type `/setup` in any channel. Only admins can use it. Orion 
 
 Running `/setup` again is safe. It skips anything that already exists, so nothing gets doubled up. If a channel with the same name already exists somewhere else, Orion leaves it where it is.
 
+## Commands
+
+| Command | Who | What happens |
+| --- | --- | --- |
+| `/setup` | Admins | Creates the channels and roles (see above). |
+| `/settopic` | Admins | Sets the topic Gabriel posts at 5:00 on Wednesday. |
+| `/key` | Everyone | Redeems a code from a shirt or a drop. Only the member sees Gabriel's answer. |
+| `/refer` | Everyone | Says who you brought. Your first makes you Crew, your fifth makes you Captain, and Orion thanks you in #wins. |
+| `/win` | Everyone | Posts your win in #wins with your name. |
+| `/lesson` | Everyone | Gabriel posts a link to the newest lesson in #the-vault. |
+
+`/refer` only counts someone who joined after you, and each person can only be one member's referral. Referrals are saved in `bot/data/referrals.json`.
+
+For `/lesson`, just post each new lesson in #the-vault. Gabriel always links the newest post there.
+
+## Keys: how a shirt becomes a key
+
+1. Make a copy of `keys.example.json` and name it `keys.json`.
+2. Open `keys.json` in a text editor. Each line is a code and what it unlocks:
+   - a role: `"7KQ2-M9XD": { "role": "Founding Member", "uses": 1 }`
+   - a lesson: `"PAYSTUB-4FJ8": { "lesson": "Reading a pay stub, line by line", "link": "https://..." }`
+3. `"uses"` is how many people can use that code. Use `1` for one code per shirt. Leave it out for a code anyone can use.
+4. Pick codes that are hard to guess, like `7KQ2-M9XD`, not `SHIRT-1`. After five wrong tries in an hour, Orion makes that person wait.
+5. Save the file. No restart needed: Orion reads it every time someone uses `/key`.
+
+A key can unlock any role except Headmaster. Codes don't care about capital letters or spaces. `keys.json` stays on your computer and is never committed. Used codes are tracked in `bot/data/keys-used.json`.
+
 ## The Wednesday build
 
 Every Wednesday, Gabriel posts in #wednesday-build:

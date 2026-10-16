@@ -43,9 +43,10 @@ Say hi in #the-table. The Wednesday build is 5:00 to 6:30 pm Central in #wednesd
   referBot: "Bots don't count.",
   referNotHere: "They need to be in the server first.",
   referTaken: (name) => `${name} is already down as someone else's referral.`,
+  referEarlier: (name) => `${name} was here before you, so they can't be your referral.`,
   crewThanks: (who, newcomer) => `Thanks ${who} for bringing ${newcomer} to the table. That's your first, so you're Crew now.`,
   captainThanks: (who) => `Thanks ${who}. That's five people you've brought to the table. You're a Captain now.`,
-  win: (name, text) => `Win from ${name}: ${text}`,
+  win: (name, text) => `Win from **${name}**: ${text}`,
   winPosted: "Posted in #wins. Nice one.",
   adminOnly: (command) => `Only an admin can run /${command}.`,
   setupDone: (what) => `Done. Created ${what}. You're the Headmaster.`,
@@ -61,20 +62,25 @@ Say hi in #the-table. The Wednesday build is 5:00 to 6:30 pm Central in #wednesd
   keyUnknown: "I don't recognise that code. Check it and try again, or ask in #questions.",
   keyUsedUp: "That code has already been used.",
   keyAlreadyYours: "You've already used that code.",
+  keyBroken: "That code isn't set up right yet. Let the Headmaster know.",
+  keySlowDown: "That's a few wrong codes in a row. Give it an hour, then try again.",
   lesson: (link) => `This week's Vault lesson: ${link}`,
   noLesson: "Nothing in #the-vault yet. Check back after the next build.",
 };
 
 const firstLine = (text) => text.split("\n")[0].slice(0, 90);
 
-/** Posts in a channel, by name, as one of the voices. Returns the message, or null in a dry run or on failure. */
-export async function post(guild, channelName, voice, text) {
+/**
+ * Posts in a channel, by name, as one of the voices. Returns the message, or null in a dry run or on failure.
+ * Mentions can ping people (never roles or @everyone); pass `mentions: []` for text a member wrote.
+ */
+export async function post(guild, channelName, voice, text, { mentions = ["users"] } = {}) {
   const channel = findChannel(guild, channelName);
   if (!channel && !DRY_RUN) {
     console.error(`Orion can't find #${channelName}. Run /setup first.`);
     return null;
   }
-  return act(`post in #${channelName} as ${voice}: "${firstLine(text)}"`, () => channel.send(say(voice, linkChannels(guild, text)))).catch((err) => {
+  return act(`post in #${channelName} as ${voice}: "${firstLine(text)}"`, () => channel.send({ content: say(voice, linkChannels(guild, text)), allowedMentions: { parse: mentions } })).catch((err) => {
     console.error(`Couldn't post in #${channelName}: ${err.message}`);
     return null;
   });
@@ -95,7 +101,7 @@ export async function dm(user, voice, text) {
 export async function answer(interaction, voice, text, { open = false } = {}) {
   const content = say(voice, linkChannels(interaction.guild, text));
   if (interaction.deferred) return interaction.editReply(content);
-  if (open && !DRY_RUN) return interaction.reply({ content });
+  if (open && !DRY_RUN) return interaction.reply({ content, allowedMentions: { parse: [] } });
   if (open) console.log(`[dry run] would post in #${interaction.channel?.name} as ${voice}: "${firstLine(text)}"`);
   return interaction.reply({ content: open ? `(Dry run, only you see this.) ${content}` : content, flags: MessageFlags.Ephemeral });
 }
