@@ -1,6 +1,8 @@
 import { ChannelType, MessageFlags, PermissionFlagsBits, SlashCommandBuilder } from "discord.js";
 import { act } from "./act.js";
 import { DRY_RUN } from "./env.js";
+import { findCategory, findRole, same, TEXT_TYPES } from "./server.js";
+import { answer, LINES, ORION, post } from "./voices.js";
 
 // Created top to bottom: Discord puts each new role under the ones before it.
 export const ROLES = [
@@ -36,20 +38,6 @@ export const CATEGORIES = [
   },
 ];
 
-export const RULES = `**Welcome to Incredible Server.**
-This is for people who don't have a table where money gets explained.
-
-**House rules**
-1. Be kind. Everyone starts somewhere.
-2. Ask anything about money. No question is too basic.
-3. No selling, no promos, no DMing people offers.
-4. Nobody here gives financial advice or promises income. We explain how money works so you can make your own calls.
-5. Keep private things private: no account numbers, card details or passwords.
-
-Say hi in #the-table. The Wednesday build is 5:00 to 6:30 pm Central in #wednesday-build.`;
-
-const same = (a, b) => a.toLowerCase() === b.toLowerCase();
-
 /** What's missing, given the names already on the server. A channel anywhere counts, so nothing is ever doubled up. */
 export function planSetup({ roles, channels }) {
   const has = (names, name) => names.some((n) => same(n, name));
@@ -61,15 +49,6 @@ export function planSetup({ roles, channels }) {
     channels: CATEGORIES.flatMap((c) => c.channels.map((ch) => ({ ...ch, parent: c.name }))).filter((ch) => !has(texts, ch.name)),
   };
 }
-
-const TEXT_TYPES = [ChannelType.GuildText, ChannelType.GuildAnnouncement, ChannelType.GuildForum];
-
-export const findRole = (guild, name) => guild.roles.cache.find((r) => same(r.name, name));
-export const findChannel = (guild, name) => guild.channels.cache.find((c) => TEXT_TYPES.includes(c.type) && same(c.name, name));
-const findCategory = (guild, name) => guild.channels.cache.find((c) => c.type === ChannelType.GuildCategory && same(c.name, name));
-
-/** Turns "#wins" in a message into a clickable channel link, when the channel exists. */
-export const linkChannels = (guild, text) => text.replace(/#([a-z0-9-]+)/g, (m, name) => (findChannel(guild, name) ? `<#${findChannel(guild, name).id}>` : m));
 
 // Members can read and react but not post; the Headmaster can post.
 const readOnly = (guild) => [
@@ -106,11 +85,9 @@ export async function runSetup(guild, runner) {
     );
   }
   if (plan.channels.some((ch) => ch.name === "welcome")) {
-    await act("post the house rules in #welcome and pin them", async () => {
-      const rules = await findChannel(guild, "welcome").send(linkChannels(guild, RULES));
-      // Pinning keeps the rules on top of the greetings; it needs the Pin Messages permission.
-      await rules.pin().catch((err) => console.error(`Couldn't pin the rules: ${err.message}`));
-    });
+    const rules = await post(guild, "welcome", ORION, LINES.rules);
+    // Pinned so the rules stay on top of the greetings; needs the Pin Messages permission.
+    if (rules) await rules.pin().catch((err) => console.error(`Couldn't pin the rules: ${err.message}`));
   }
   if (runner && !runner.roles.cache.some((r) => same(r.name, "Headmaster"))) {
     await act(`give ${runner.displayName} the Headmaster role`, () => runner.roles.add(findRole(guild, "Headmaster"), reason));
@@ -127,16 +104,12 @@ export const commands = {
       .setDescription("Create the Incredible Server channels and roles (admins only).")
       .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
     async run(interaction) {
-      if (!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
-        return interaction.reply({ content: "Only an admin can run /setup.", flags: MessageFlags.Ephemeral });
-      }
+      if (!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) return answer(interaction, ORION, LINES.adminOnly("setup"));
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       const plan = await runSetup(interaction.guild, interaction.member);
       const made = plan.roles.length + plan.categories.length + plan.channels.length;
       const what = `${count(plan.roles.length, "role", "roles")}, ${count(plan.categories.length, "category", "categories")} and ${count(plan.channels.length, "channel", "channels")}`;
-      await interaction.editReply(
-        DRY_RUN ? `Dry run, so nothing changed. /setup would create ${what}. The list is in Orion's terminal.` : made ? `Done. Created ${what}. You're the Headmaster.` : "Everything was already in place. Nothing new to create.",
-      );
+      await answer(interaction, ORION, DRY_RUN ? LINES.setupDry(what) : made ? LINES.setupDone(what) : LINES.setupNothing);
     },
   },
 };
