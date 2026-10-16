@@ -30,11 +30,11 @@ You don't need to know how to code to run it. Follow the steps below in order. T
 
 1. Copy this link and replace `YOUR_APPLICATION_ID` with the Application ID from step 2:
 
-   `https://discord.com/oauth2/authorize?client_id=YOUR_APPLICATION_ID&scope=bot+applications.commands&permissions=268520464`
+   `https://discord.com/oauth2/authorize?client_id=YOUR_APPLICATION_ID&scope=bot+applications.commands&permissions=2251800082205712`
 
 2. Open the link in your browser, pick **Incredible Server** and click **Authorize**.
 
-The link gives Orion only what it needs: manage roles, manage channels, see channels, send messages, embed links and read message history.
+The link gives Orion only what it needs: manage roles, manage channels, see channels, send messages, embed links, read message history and pin messages.
 
 ### 4. Copy your server ID
 
@@ -86,11 +86,25 @@ Orion connects and writes in the terminal everything it would do, but changes no
 
 You can also set `DRY_RUN=true` in `.env` to keep it in dry-run mode every time you start it.
 
+A dry run never changes anything on Discord, so it doesn't add Orion's slash commands either. Run `npm start` once to add them.
+
+## Set up the server (once)
+
+With Orion running, type `/setup` in any channel. Only admins can use it. Orion creates whatever is missing:
+
+- **THE TABLE**: #welcome (house rules, pinned), #the-table (general chat), #wins (post a win, any size)
+- **FREEDOM UNIVERSITY**: #wednesday-build (the weekly session), #the-vault (lessons, read-only for members), #questions (ask anything about money)
+- **THE DROP**: #the-drop (shirts and drops, read-only), #keys (where members redeem keys)
+- **Roles**: Headmaster (you), Captain, Crew and Founding Member
+
+Running `/setup` again is safe. It skips anything that already exists, so nothing gets doubled up. If a channel with the same name already exists somewhere else, Orion leaves it where it is.
+
 ## If something goes wrong
 
 - **"Orion needs DISCORD_TOKEN and GUILD_ID"**: the `.env` file is missing or one value is empty. Go back to step 5.
 - **"Discord didn't accept the token"**: copy the token again (step 2.6) and paste it into `.env`.
 - **"Orion isn't in the server"**: invite it again (step 3), or check the server ID (step 4).
+- **Orion can't give someone a role**: in **Server Settings**, then **Roles**, drag the **Orion** role above Headmaster, Captain, Crew and Founding Member. Discord only lets a bot hand out roles that sit below its own.
 
 ## Keep the token safe
 
