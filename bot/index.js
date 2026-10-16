@@ -1,6 +1,7 @@
 // Orion, the Discord bot for Incredible Server.
 import { DISCORD_TOKEN, DRY_RUN, GUILD_ID } from "./env.js";
 import { Client, Events, GatewayIntentBits, MessageFlags } from "discord.js";
+import * as schedule from "./schedule.js";
 import * as setup from "./setup.js";
 
 if (!DISCORD_TOKEN || !GUILD_ID) {
@@ -8,13 +9,14 @@ if (!DISCORD_TOKEN || !GUILD_ID) {
   process.exit(1);
 }
 
-const commands = { ...setup.commands };
+const commands = { ...setup.commands, ...schedule.commands };
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
 client.once(Events.ClientReady, async (c) => {
   console.log(`Orion is online as ${c.user.tag}.`);
   const guild = c.guilds.cache.get(GUILD_ID);
   if (!guild) return console.error("Orion isn't in the server with that GUILD_ID yet. Invite it with the link in README.md (step 3).");
+  schedule.startSchedule(guild);
   if (DRY_RUN) {
     console.log("DRY RUN: Orion only writes here what it would do. Nothing on the server changes.\nHere's what /setup would do right now:");
     await setup.runSetup(guild);

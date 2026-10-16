@@ -99,6 +99,17 @@ With Orion running, type `/setup` in any channel. Only admins can use it. Orion 
 
 Running `/setup` again is safe. It skips anything that already exists, so nothing gets doubled up. If a channel with the same name already exists somewhere else, Orion leaves it where it is.
 
+## The Wednesday build
+
+Every Wednesday, Gabriel posts in #wednesday-build:
+
+- **4:30 pm Central:** "Build starts in 30. Bring one question about money."
+- **5:00 pm Central:** the topic you set with `/settopic`.
+
+To set the topic, type `/settopic` anywhere before 5:00 on Wednesday, then the topic. Only admins can. Gabriel posts it once and then clears it, so next week starts fresh. If no topic is set, Gabriel says there's no set topic tonight and to bring whatever's on their mind.
+
+Orion has to be running at 4:30 and 5:00 for the posts to go out. If it's restarted within five minutes after either time, it still posts. Central time follows daylight saving on its own. The topic is saved in `bot/data/topic.json`.
+
 ## If something goes wrong
 
 - **"Orion needs DISCORD_TOKEN and GUILD_ID"**: the `.env` file is missing or one value is empty. Go back to step 5.
