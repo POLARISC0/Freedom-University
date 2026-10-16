@@ -9,6 +9,7 @@ You don't need to know how to code to run it. Follow the steps below in order. T
 - A computer that stays on while you want Orion online. Orion only works while it's running.
 - Owner or admin rights on the Incredible Server Discord.
 - Node.js, the free program Orion runs on (step 1).
+- Orion's files. On the GitHub page for Freedom-University, click the green **Code** button, then **Download ZIP**, and unzip it. Orion is the `bot` folder inside.
 
 ## One-time setup
 
