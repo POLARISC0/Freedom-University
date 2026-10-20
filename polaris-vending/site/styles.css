@@ -1,0 +1,790 @@
+/* Polaris Vending: how the site looks. The words are in index.html.
+   Layout: a black, cinematic single page. A full-screen opener puts the logo under a slow aurora, then come wide,
+   left-aligned sections with a lot of air, ending on a giant outlined wordmark.
+   One dark look on purpose (no light theme), in the Polaris greens taken from the logo. */
+:root {
+  /* Colour */
+  --night: #000000;   /* the page */
+  --deep: #06140f;    /* raised surfaces: cards and the form */
+  --emerald: #177658; /* brand green, the logo's outline */
+  --mint: #5fe688;    /* highlight, the logo's aurora */
+  --ink: #eef5f1;     /* text */
+  --muted: #9bb0a6;   /* quieter text, green-tinted grey */
+  --line: color-mix(in srgb, var(--ink) 12%, transparent);
+  --error: #ff8f87;   /* a form field that needs fixing */
+  /* Type: an expanded heavy display face, a clean body face, and a mono for small labels */
+  --display: "Archivo", "Arial Black", Impact, sans-serif;
+  --body: "Geist", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: "Geist Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  /* Space, on an 8px grid */
+  --gutter: 20px;
+  --section: 64px;
+  color-scheme: dark;
+}
+
+@media (min-width: 768px) {
+  :root {
+    --gutter: 40px;
+    --section: 96px;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--night);
+  color: var(--ink);
+  font: 400 1.0625rem/1.6 var(--body);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: clip;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+a {
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--mint);
+  outline-offset: 3px;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  font-family: var(--display);
+  font-stretch: 125%;
+  font-weight: 800;
+  line-height: 0.95;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+  text-wrap: balance;
+}
+
+p {
+  margin: 0;
+}
+
+ul,
+ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wrap {
+  width: 100%;
+  max-width: 1200px;
+  margin-inline: auto;
+  padding-left: max(var(--gutter), env(safe-area-inset-left, 0px));
+  padding-right: max(var(--gutter), env(safe-area-inset-right, 0px));
+}
+
+.lede {
+  max-width: 34ch;
+  margin-top: 20px;
+  color: var(--muted);
+  font-size: clamp(1.125rem, 3.2vw, 1.375rem);
+  line-height: 1.5;
+}
+
+.outline {
+  color: transparent;
+  -webkit-text-stroke: 1.5px var(--mint);
+}
+
+/* A machine's power light: solid and slowly pulsing when on, a hollow ring for "coming soon". */
+.led {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--mint);
+  box-shadow: 0 0 14px var(--mint);
+  animation: pulse 2.6s ease-in-out infinite;
+}
+
+.led--soon {
+  width: 9px;
+  height: 9px;
+  background: transparent;
+  border: 1.5px solid var(--mint);
+  box-shadow: none;
+  animation: none;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
+  padding: 0 30px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--mint);
+  color: var(--night);
+  font: 600 1.0625rem/1 var(--body);
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 180ms ease, transform 180ms ease;
+}
+
+.button:hover {
+  background: color-mix(in srgb, var(--mint) 78%, var(--ink));
+}
+
+.button:active {
+  transform: translateY(1px);
+}
+
+.button:focus-visible {
+  outline-color: var(--ink);
+}
+
+/* ---------- Hero ---------- */
+
+.hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 24px;
+  min-height: 100vh;
+  min-height: 100svh;
+  padding-block: clamp(80px, 11vh, 120px) clamp(72px, 10vh, 104px);
+  padding-left: max(var(--gutter), env(safe-area-inset-left, 0px));
+  padding-right: max(var(--gutter), env(safe-area-inset-right, 0px));
+  text-align: center;
+}
+
+/* The aurora: three soft greens drifting very slowly behind the logo. */
+.hero::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: -25% -40% 5%;
+  background:
+    radial-gradient(36% 30% at 30% 36%, color-mix(in srgb, var(--mint) 20%, transparent), transparent 70%),
+    radial-gradient(42% 34% at 70% 30%, color-mix(in srgb, var(--emerald) 55%, transparent), transparent 72%),
+    radial-gradient(70% 42% at 50% 72%, color-mix(in srgb, var(--emerald) 30%, transparent), transparent 70%);
+  animation: aurora 28s ease-in-out infinite alternate;
+}
+
+/* Fades the glow out before the next section. */
+.hero::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: auto 0 0;
+  height: 38%;
+  background: linear-gradient(transparent, var(--night));
+}
+
+@keyframes aurora {
+  to {
+    transform: translate3d(6%, 4%, 0) rotate(4deg) scale(1.1);
+  }
+}
+
+.hero__note {
+  position: absolute;
+  top: 28px;
+  left: max(var(--gutter), env(safe-area-inset-left, 0px));
+  color: var(--muted);
+  font: 500 0.75rem/1 var(--mono);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+/* The logo sits inside two compass rings; the outer one turns once every two minutes. */
+.hero__mark {
+  position: relative;
+  /* Sized by screen height too, so the button stays on the first screen of a laptop. */
+  width: clamp(152px, min(46vw, 30vh), 288px);
+  margin-bottom: 8px;
+}
+
+.hero__mark img {
+  width: 100%;
+  /* The logo has a black square behind it. Lighten lets the aurora show through that black. */
+  mix-blend-mode: lighten;
+}
+
+.hero__mark::before,
+.hero__mark::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.hero__mark::before {
+  inset: -12%;
+  border: 1px solid color-mix(in srgb, var(--mint) 24%, transparent);
+}
+
+.hero__mark::after {
+  inset: -28%;
+  border: 1px dashed color-mix(in srgb, var(--mint) 18%, transparent);
+  animation: turn 120s linear infinite;
+}
+
+@keyframes turn {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+.hero__title {
+  font-size: clamp(2.25rem, min(13vw, 13vh), 8.5rem);
+  line-height: 0.9;
+}
+
+.hero__title span {
+  display: block;
+}
+
+.hero__tagline {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  font-size: clamp(1.125rem, 3.8vw, 1.5rem);
+  font-weight: 500;
+}
+
+.hero__cue {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  height: 64px;
+  background: linear-gradient(var(--mint), transparent);
+  opacity: 0.6;
+}
+
+/* ---------- Sections ---------- */
+
+.section {
+  padding-block: var(--section);
+}
+
+.section h2 {
+  font-size: clamp(2rem, 8.6vw, 4.75rem);
+}
+
+/* How it works: three numbered steps. On wide screens a route line joins them. */
+.steps {
+  display: grid;
+  gap: 40px;
+  margin-top: 56px;
+}
+
+.steps li {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  gap: 16px;
+  align-items: baseline;
+}
+
+.steps__n {
+  color: transparent;
+  -webkit-text-stroke: 1.5px var(--mint);
+  font: 800 3.5rem/1 var(--display);
+  font-stretch: 125%;
+}
+
+.steps p {
+  max-width: 20ch;
+  font-size: clamp(1.375rem, 4.6vw, 1.875rem);
+  font-weight: 500;
+  line-height: 1.25;
+  text-wrap: balance;
+}
+
+@media (min-width: 900px) {
+  .steps {
+    position: relative;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 48px;
+    margin-top: 80px;
+    padding-top: 48px;
+  }
+
+  .steps::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto;
+    height: 1px;
+    background: linear-gradient(90deg, var(--mint), color-mix(in srgb, var(--emerald) 50%, transparent) 70%, transparent);
+  }
+
+  .steps li {
+    position: relative;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+  }
+
+  .steps li::before {
+    content: "";
+    position: absolute;
+    top: -53px;
+    left: 0;
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    background: var(--night);
+    border: 2px solid var(--mint);
+  }
+}
+
+/* What we stock: rows labelled like the buttons on a vending machine. */
+.split {
+  display: grid;
+  gap: 48px;
+}
+
+@media (min-width: 900px) {
+  .split {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    gap: 72px;
+    align-items: start;
+  }
+
+  .split h2 {
+    position: sticky;
+    top: 96px;
+  }
+}
+
+.rows li {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  column-gap: 20px;
+  row-gap: 8px;
+  padding-block: 28px;
+  border-top: 1px solid var(--line);
+}
+
+.rows li:last-child {
+  border-bottom: 1px solid var(--line);
+}
+
+.slot {
+  grid-row: span 2;
+  align-self: start;
+  padding-block: 8px;
+  border: 1px solid color-mix(in srgb, var(--mint) 38%, transparent);
+  border-radius: 8px;
+  color: var(--mint);
+  font: 500 0.8125rem/1 var(--mono);
+  letter-spacing: 0.08em;
+  text-align: center;
+}
+
+.rows h3 {
+  font-size: clamp(1.25rem, 4.6vw, 1.75rem);
+  line-height: 1.05;
+}
+
+.rows p {
+  max-width: 44ch;
+  color: var(--muted);
+}
+
+.rows__custom h3 {
+  color: var(--mint);
+}
+
+/* Why Polaris: three short reasons. */
+.reasons {
+  display: grid;
+  gap: 44px;
+  margin-top: 56px;
+}
+
+@media (min-width: 900px) {
+  .reasons {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 56px;
+    margin-top: 72px;
+  }
+}
+
+.reasons h3 {
+  font-size: clamp(1.5rem, 5vw, 2.125rem);
+  line-height: 1;
+}
+
+.reasons p {
+  max-width: 32ch;
+  margin-top: 16px;
+  color: var(--muted);
+  font-size: 1.125rem;
+}
+
+/* Locations: dashed cards for sites that are coming, a solid one for yours. */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  gap: 16px;
+  margin-top: 48px;
+}
+
+.card {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  padding: 24px;
+  border: 1px dashed color-mix(in srgb, var(--mint) 32%, transparent);
+  border-radius: 18px;
+  background:
+    radial-gradient(color-mix(in srgb, var(--mint) 10%, transparent) 1px, transparent 1.4px) 0 0 / 18px 18px,
+    var(--deep);
+}
+
+.card h3 {
+  margin-top: 28px;
+  font-size: 1.25rem;
+  line-height: 1.1;
+}
+
+.card p {
+  color: var(--muted);
+}
+
+.card .card__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--mint);
+  font: 500 0.75rem/1 var(--mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.card--open {
+  border: 1px solid var(--mint);
+  background: color-mix(in srgb, var(--emerald) 24%, var(--night));
+}
+
+.card--open h3 {
+  margin-top: 0;
+}
+
+.card--open p {
+  color: var(--ink);
+}
+
+.card__link {
+  display: inline-block;
+  padding-block: 10px;
+  color: var(--mint);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.card__link:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+/* ---------- Contact ---------- */
+
+.contact {
+  display: grid;
+  gap: 40px;
+}
+
+@media (min-width: 900px) {
+  .contact {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+    grid-template-areas:
+      "intro form"
+      "details form";
+    grid-template-rows: auto 1fr;
+    column-gap: 80px;
+    row-gap: 56px;
+    align-items: start;
+  }
+
+  .contact__intro {
+    grid-area: intro;
+  }
+
+  .form {
+    grid-area: form;
+  }
+
+  .contact__details {
+    grid-area: details;
+  }
+}
+
+.form {
+  display: grid;
+  gap: 20px;
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: var(--deep);
+}
+
+@media (min-width: 600px) {
+  .form {
+    padding: 36px;
+  }
+}
+
+.field {
+  display: grid;
+  gap: 8px;
+}
+
+.field label {
+  font-weight: 500;
+}
+
+.field label span,
+.field__hint {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.field__hint {
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+input,
+textarea {
+  width: 100%;
+  min-height: 52px;
+  padding: 12px 16px;
+  border: 1px solid color-mix(in srgb, var(--ink) 20%, transparent);
+  border-radius: 12px;
+  background: var(--night);
+  color: var(--ink);
+  font: inherit;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+textarea {
+  min-height: 136px;
+  resize: vertical;
+}
+
+input:user-invalid,
+textarea:user-invalid {
+  border-color: var(--error);
+}
+
+input:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  border-color: var(--mint);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 28%, transparent);
+}
+
+.form .button {
+  width: 100%;
+  margin-top: 4px;
+}
+
+@media (min-width: 600px) {
+  .form .button {
+    width: auto;
+    justify-self: start;
+  }
+}
+
+.form__note {
+  color: var(--muted);
+  font-size: 1rem;
+}
+
+.form__status {
+  color: var(--mint);
+  overflow-wrap: anywhere;
+}
+
+.form__status:empty {
+  display: none;
+}
+
+.contact__details {
+  display: grid;
+  gap: 24px;
+}
+
+.contact__details h3 {
+  color: var(--muted);
+  font: 500 0.8125rem/1 var(--mono);
+  letter-spacing: 0.16em;
+}
+
+.details {
+  display: grid;
+  gap: 16px;
+}
+
+.details li {
+  display: grid;
+  gap: 4px;
+}
+
+.details__label {
+  color: var(--muted);
+  font: 500 0.75rem/1.4 var(--mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.details a {
+  display: inline-block;
+  padding-block: 6px;
+  font-size: 1.25rem;
+  font-weight: 500;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.details a:hover {
+  color: var(--mint);
+}
+
+.social {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.social a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: border-color 160ms ease, color 160ms ease;
+}
+
+.social a span {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.social a:hover {
+  border-color: var(--mint);
+  color: var(--mint);
+}
+
+/* ---------- Footer ---------- */
+
+/* The page ends on the same green light it opens with, low on the horizon behind the wordmark. */
+.footer {
+  overflow: hidden;
+  padding-top: 72px;
+  border-top: 1px solid var(--line);
+  background: radial-gradient(60% 55% at 50% 100%, color-mix(in srgb, var(--emerald) 28%, transparent), transparent);
+}
+
+.footer__inner {
+  display: grid;
+  gap: 28px;
+}
+
+@media (min-width: 900px) {
+  .footer__inner {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 40px;
+  }
+}
+
+.footer__logo {
+  width: 56px;
+  border-radius: 50%;
+}
+
+.footer__label {
+  color: var(--muted);
+  font: 500 0.75rem/1 var(--mono);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.footer ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 24px;
+  margin-top: 8px;
+}
+
+.footer nav a {
+  display: inline-block;
+  padding-block: 10px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.footer nav a:hover,
+.footer nav a[aria-current] {
+  color: var(--mint);
+}
+
+.footer__copy {
+  color: var(--muted);
+  font-size: 1rem;
+}
+
+.footer__word {
+  margin-top: 64px;
+  color: transparent;
+  -webkit-text-stroke: 1px color-mix(in srgb, var(--emerald) 85%, transparent);
+  font: 800 15.5vw/0.78 var(--display);
+  font-stretch: 125%;
+  text-align: center;
+  text-transform: uppercase;
+  white-space: nowrap;
+  user-select: none;
+  -webkit-mask-image: linear-gradient(var(--night) 30%, transparent);
+  mask-image: linear-gradient(var(--night) 30%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

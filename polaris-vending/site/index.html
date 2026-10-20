@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Polaris Vending</title>
+  <meta name="description" content="Polaris Vending puts vending machines in gyms, barbershops, schools and offices at no cost to you, then stocks and services them every week.">
+  <meta name="theme-color" content="#000000">
+  <link rel="icon" type="image/png" href="images/polaris-logo.png">
+  <link rel="apple-touch-icon" href="images/polaris-logo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@125,800&family=Geist:wght@400..600&family=Geist+Mono:wght@500&display=swap">
+  <link rel="stylesheet" href="styles.css">
+  <script src="contact.js" defer></script>
+</head>
+<body>
+  <!--
+    All the words on the Polaris Vending site live in this file.
+    Anything still to fill in is marked with the word placeholder, written in capital letters.
+    Search for it to find each one, or run npm run preview to get a list.
+    The real contact details go in the CONTACT DETAILS block near the bottom.
+  -->
+
+  <header id="top" class="hero">
+    <p class="hero__note">A Polaris company</p>
+    <div class="hero__mark">
+      <img src="images/polaris-logo.png" alt="Polaris logo" width="512" height="512" fetchpriority="high">
+    </div>
+    <h1 class="hero__title"><span>Polaris</span> <span class="outline">Vending</span></h1>
+    <p class="hero__tagline"><span class="led" aria-hidden="true"></span>Always stocked. Always on.</p>
+    <a class="button" href="#contact">Get a machine</a>
+    <span class="hero__cue" aria-hidden="true"></span>
+  </header>
+
+  <main>
+    <section id="how-it-works" class="section" aria-labelledby="how-title">
+      <div class="wrap">
+        <h2 id="how-title">How it works</h2>
+        <ol class="steps" role="list">
+          <li><span class="steps__n" aria-hidden="true">1</span><p>We place the machine at no cost to you.</p></li>
+          <li><span class="steps__n" aria-hidden="true">2</span><p>We stock and service it weekly.</p></li>
+          <li><span class="steps__n" aria-hidden="true">3</span><p>You earn a share of every sale.</p></li>
+        </ol>
+      </div>
+    </section>
+
+    <section id="what-we-stock" class="section" aria-labelledby="stock-title">
+      <div class="wrap split">
+        <h2 id="stock-title">What we stock</h2>
+        <ul class="rows" role="list">
+          <li>
+            <span class="slot" aria-hidden="true">A1</span>
+            <h3>Snacks</h3>
+            <p>Chips, crackers, cookies and candy.</p>
+          </li>
+          <li>
+            <span class="slot" aria-hidden="true">B2</span>
+            <h3>Drinks</h3>
+            <p>Water, soda, juice and sports drinks.</p>
+          </li>
+          <li>
+            <span class="slot" aria-hidden="true">C3</span>
+            <h3>Healthy options</h3>
+            <p>Protein bars, nuts and lower-sugar picks.</p>
+          </li>
+          <li class="rows__custom">
+            <span class="slot" aria-hidden="true">D4</span>
+            <h3>Custom to your space</h3>
+            <p>A gym, a barbershop, a school and an office all want different things. We stock for the people who use yours.</p>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="why-polaris" class="section" aria-labelledby="why-title">
+      <div class="wrap">
+        <h2 id="why-title">Why Polaris</h2>
+        <ul class="reasons" role="list">
+          <li>
+            <h3>Reliable</h3>
+            <p>We come every week to restock and check the machine. If something breaks, we fix it.</p>
+          </li>
+          <li>
+            <h3>Local</h3>
+            <p>We're based in PLACEHOLDER city. When you call, you get us.</p>
+          </li>
+          <li>
+            <h3>Part of the Polaris family</h3>
+            <p>Polaris Vending is part of Polaris, the company behind Freedom University.</p>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="locations" class="section" aria-labelledby="locations-title">
+      <div class="wrap">
+        <h2 id="locations-title">Locations</h2>
+        <p class="lede">Our first machines are on the way. This is where they're going.</p>
+        <ul class="cards" role="list">
+          <li class="card">
+            <p class="card__status"><span class="led led--soon" aria-hidden="true"></span>Coming soon</p>
+            <h3>PLACEHOLDER: Gym name</h3>
+            <p>PLACEHOLDER: Area, City</p>
+          </li>
+          <li class="card">
+            <p class="card__status"><span class="led led--soon" aria-hidden="true"></span>Coming soon</p>
+            <h3>PLACEHOLDER: Barbershop name</h3>
+            <p>PLACEHOLDER: Area, City</p>
+          </li>
+          <li class="card">
+            <p class="card__status"><span class="led led--soon" aria-hidden="true"></span>Coming soon</p>
+            <h3>PLACEHOLDER: Office name</h3>
+            <p>PLACEHOLDER: Area, City</p>
+          </li>
+          <li class="card card--open">
+            <h3>Your space?</h3>
+            <p>Gyms, barbershops, schools and offices can host a machine.</p>
+            <a class="card__link" href="#contact">Get a machine <span aria-hidden="true">→</span></a>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="contact" class="section" aria-labelledby="contact-title">
+      <div class="wrap contact">
+        <div class="contact__intro">
+          <h2 id="contact-title">Get a machine</h2>
+          <p class="lede">Tell us about your space and we'll get back to you.</p>
+        </div>
+
+        <form id="contact-form" class="form" method="post">
+          <div class="field">
+            <label for="name">Your name</label>
+            <input id="name" name="name" autocomplete="name" maxlength="80" required>
+          </div>
+          <div class="field">
+            <label for="business">Business name</label>
+            <input id="business" name="business" autocomplete="organization" maxlength="100" required>
+          </div>
+          <div class="field">
+            <label for="phone">Phone</label>
+            <input id="phone" name="phone" type="tel" autocomplete="tel" maxlength="30" required>
+          </div>
+          <div class="field">
+            <label for="message">Message <span>(optional)</span></label>
+            <p id="message-hint" class="field__hint">What kind of space is it, and about how many people come through each day?</p>
+            <textarea id="message" name="message" rows="4" maxlength="800" aria-describedby="message-hint"></textarea>
+          </div>
+          <button class="button" type="submit">Send</button>
+          <p class="form__note">Sending opens your email app with this filled in. Nothing is saved on this website.</p>
+          <p id="form-status" class="form__status" role="status"></p>
+        </form>
+
+        <div class="contact__details">
+          <h3>Or reach us directly</h3>
+          <!-- CONTACT DETAILS: swap in the real ones. The form sends its emails to the address on the Email line. -->
+          <ul class="details" role="list">
+            <li><span class="details__label">Email</span> <a id="contact-email" href="mailto:PLACEHOLDER@example.com">PLACEHOLDER@example.com</a></li>
+            <li><span class="details__label">Phone</span> <a href="tel:+10000000000">PLACEHOLDER (000) 000-0000</a></li>
+          </ul>
+          <ul class="social" role="list">
+            <li><a href="https://www.instagram.com/PLACEHOLDER">Instagram <span>@PLACEHOLDER</span></a></li>
+            <li><a href="https://www.tiktok.com/@PLACEHOLDER">TikTok <span>@PLACEHOLDER</span></a></li>
+            <li><a href="https://x.com/PLACEHOLDER">X <span>@PLACEHOLDER</span></a></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer id="family" class="footer">
+    <div class="wrap footer__inner">
+      <img class="footer__logo" src="images/polaris-logo.png" alt="" width="56" height="56" loading="lazy">
+      <nav aria-labelledby="family-title">
+        <p id="family-title" class="footer__label">The Polaris family</p>
+        <ul role="list">
+          <li><a href="#PLACEHOLDER-polaris-website">Polaris</a></li>
+          <li><a href="#PLACEHOLDER-freedom-university-website">Freedom University</a></li>
+          <li><a href="#top" aria-current="page">Polaris Vending</a></li>
+        </ul>
+      </nav>
+      <p class="footer__copy">© 2026 Polaris. All rights reserved.</p>
+    </div>
+    <p class="footer__word" aria-hidden="true">Polaris</p>
+  </footer>
+</body>
+</html>
