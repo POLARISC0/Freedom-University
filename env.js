@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 
-// Settings live in bot/.env, which you fill in yourself. Nothing in Orion prints the token.
+// Settings live in .env, in this folder, which you fill in yourself. Nothing in Orion prints the token.
 const file = new URL(".env", import.meta.url);
 if (existsSync(file)) process.loadEnvFile(file);
 

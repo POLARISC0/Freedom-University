@@ -9,7 +9,7 @@ You don't need to know how to code to run it. Follow the steps below in order. T
 - A computer that stays on while you want Orion online. Orion only works while it's running.
 - Owner or admin rights on the Incredible Server Discord.
 - Node.js, the free program Orion runs on (step 1).
-- Orion's files. On the GitHub page for Freedom-University, click the green **Code** button, then **Download ZIP**, and unzip it. Orion is the `bot` folder inside.
+- Orion's files, downloaded from GitHub as a ZIP and unzipped. `dna/SETUP.md` has the exact link and steps. In this guide, "Orion's folder" means that unzipped folder.
 
 ## One-time setup
 
@@ -44,7 +44,7 @@ The link gives Orion only what it needs: manage roles, manage channels, see chan
 
 ### 5. Give Orion its settings
 
-1. Open the `bot` folder.
+1. Open Orion's folder.
 2. Make a copy of `.env.example` and name the copy `.env` (just `.env`, nothing before the dot).
    Can't see `.env.example`? On a Mac press Cmd+Shift+. (full stop) in the folder to show hidden files. On Windows, in File Explorer pick **View**, then **Show**, then **Hidden items**.
 3. Open `.env` in a plain text editor (TextEdit or Notepad).
@@ -52,10 +52,10 @@ The link gives Orion only what it needs: manage roles, manage channels, see chan
 
 `.env` stays on your computer. It is never uploaded or shared, and Orion never shows the token on screen.
 
-### 6. Open a terminal in the bot folder
+### 6. Open a terminal in Orion's folder
 
-- **Mac:** open the Terminal app, type `cd ` (with a space after it), drag the `bot` folder into the window and press Enter.
-- **Windows:** open the `bot` folder in File Explorer, click the address bar at the top, type `cmd` and press Enter.
+- **Mac:** open the Terminal app, type `cd ` (with a space after it), drag Orion's folder into the window and press Enter.
+- **Windows:** open Orion's folder in File Explorer, click the address bar at the top, type `cmd` and press Enter.
 
 ### 7. Install Orion
 
@@ -69,7 +69,7 @@ Wait until it finishes. You only need to do this once, and again after an update
 
 ## Running Orion
 
-In the terminal, in the `bot` folder:
+In the terminal, in Orion's folder:
 
 ```
 npm start
@@ -107,7 +107,7 @@ People already in the server when you first run `/setup` were here first, so the
 The moment a new person joins, Orion:
 
 1. **Says hello in #welcome**, by name.
-2. **Gives them Founding Member** if they're one of the first 50, and the hello says which number they are. Someone who leaves and comes back keeps their number. The list is in `bot/data/founding.json`.
+2. **Gives them Founding Member** if they're one of the first 50, and the hello says which number they are. Someone who leaves and comes back keeps their number. The list is in `data/founding.json`.
 3. **DMs them five questions**, one at a time:
    - If money weren't a thing, what's the first thing you'd buy?
    - What's stopping you right now?
@@ -117,7 +117,7 @@ The moment a new person joins, Orion:
 
 They can type `skip` to pass on any. Once all five are in, Orion DMs the answers to you. Some people block DMs from servers. They still get the hello and the role, just not the questions. Someone who comes back after answering all five isn't asked again.
 
-The answers are saved in `bot/data/answers.json`. They're private, so don't share that file.
+The answers are saved in `data/answers.json`. They're private, so don't share that file.
 
 ## Commands
 
@@ -130,7 +130,7 @@ The answers are saved in `bot/data/answers.json`. They're private, so don't shar
 | `/win` | Everyone | Posts your win in #wins with your name. |
 | `/lesson` | Everyone | Gabriel posts a link to the newest lesson in #the-vault. |
 
-`/refer` only counts someone who joined after you, and each person can only be one member's referral. Referrals are saved in `bot/data/referrals.json`.
+`/refer` only counts someone who joined after you, and each person can only be one member's referral. Referrals are saved in `data/referrals.json`.
 
 For `/lesson`, just post each new lesson in #the-vault. Gabriel always links the newest post there.
 
@@ -144,7 +144,7 @@ For `/lesson`, just post each new lesson in #the-vault. Gabriel always links the
 4. Pick codes that are hard to guess, like `7KQ2-M9XD`, not `SHIRT-1`. After five wrong tries in an hour, Orion makes that person wait.
 5. Save the file. No restart needed: Orion reads it every time someone uses `/key`.
 
-A key can unlock any role except Headmaster. Codes don't care about capital letters or spaces. `keys.json` stays on your computer and is never committed. Used codes are tracked in `bot/data/keys-used.json`.
+A key can unlock any role except Headmaster. Codes don't care about capital letters or spaces. `keys.json` stays on your computer and is never committed. Used codes are tracked in `data/keys-used.json`.
 
 ## The Wednesday build
 
@@ -155,7 +155,7 @@ Every Wednesday, Gabriel posts in #wednesday-build:
 
 To set the topic, type `/settopic` anywhere before 5:00 on Wednesday, then the topic. Only admins can. Gabriel posts it once and then clears it, so next week starts fresh. If no topic is set, Gabriel says there's no set topic tonight and to bring whatever's on their mind.
 
-Orion has to be running at 4:30 and 5:00 for the posts to go out. If it's restarted within five minutes after either time, it still posts. Central time follows daylight saving on its own. The topic is saved in `bot/data/topic.json`.
+Orion has to be running at 4:30 and 5:00 for the posts to go out. If it's restarted within five minutes after either time, it still posts. Central time follows daylight saving on its own. The topic is saved in `data/topic.json`.
 
 ## If something goes wrong
 
