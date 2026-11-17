@@ -6,7 +6,7 @@ import { getJournal, getRecentCheckIns } from "@/walk/server/data";
 export const metadata: Metadata = { title: "Walk Journal" };
 
 export default async function JournalPage() {
-  const user = await requireUser("/walk/journal", "/walk/begin");
+  const user = await requireUser("/walk/journal");
   const [entries, checkIns] = await Promise.all([getJournal(user.id), getRecentCheckIns(user.id)]);
   return (
     <div className="space-y-6">

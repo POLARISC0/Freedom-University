@@ -6,7 +6,7 @@ import { cache } from "react";
 import { db } from "./db";
 import { hashPassword, verifyPassword } from "./password";
 
-export const SESSION_COOKIE = "fu_session";
+export const SESSION_COOKIE = "walk_session";
 const SESSION_DAYS = 30;
 
 export interface CurrentUser {
@@ -20,10 +20,7 @@ function hashToken(token: string): string {
 
 export type SignInResult = { ok: true } | { ok: false; error: string };
 
-/**
- * Sign in with a username and password. New usernames create an account with that password. Accounts created
- * before passwords existed have no hash yet: the first password used to sign in to one becomes its password.
- */
+/** Sign in with a username and password. New usernames create an account with that password. */
 export async function signInWithPassword(
   username: string,
   password: string,
@@ -41,16 +38,10 @@ export async function signInWithPassword(
       // Someone else took the username a moment ago.
       return { ok: false, error: "That username was just taken. Please try again." };
     }
-  } else if (existing.passwordHash) {
+  } else {
     if (!(await verifyPassword(password, existing.passwordHash))) {
       return { ok: false, error: "That username and password don't match." };
     }
-    userId = existing.id;
-  } else {
-    // An account from before passwords: this password becomes its password, and every session started without
-    // one is signed out, so nobody who used the old username-only login keeps access.
-    await db.user.update({ where: { id: existing.id }, data: { passwordHash: await hashPassword(password) } });
-    await db.session.deleteMany({ where: { userId: existing.id } });
     userId = existing.id;
   }
   await startSession(userId);
@@ -81,7 +72,7 @@ export async function endSession(): Promise<void> {
   jar.delete(SESSION_COOKIE);
 }
 
-/** The signed-in student for this request, or null. Deduplicated per request. */
+/** The signed-in player for this request, or null. Deduplicated per request. */
 export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!token) return null;
@@ -93,9 +84,9 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   return session.user;
 });
 
-/** For pages: redirect to a sign-in page when nobody is signed in. */
-export async function requireUser(nextPath: string, loginPath = "/login"): Promise<CurrentUser> {
+/** For pages: send signed-out visitors to the sign-in page, which brings them back to `nextPath`. */
+export async function requireUser(nextPath: string): Promise<CurrentUser> {
   const user = await getCurrentUser();
-  if (!user) redirect(`${loginPath}?next=${encodeURIComponent(nextPath)}`);
+  if (!user) redirect(`/walk/begin?next=${encodeURIComponent(nextPath)}`);
   return user;
 }

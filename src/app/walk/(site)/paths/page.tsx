@@ -7,7 +7,7 @@ import { getProgressMap } from "@/walk/server/data";
 export const metadata: Metadata = { title: "Growth paths" };
 
 export default async function PathsPage() {
-  const user = await requireUser("/walk/paths", "/walk/begin");
+  const user = await requireUser("/walk/paths");
   const progress = await getProgressMap(user.id);
   return (
     <div className="space-y-6">

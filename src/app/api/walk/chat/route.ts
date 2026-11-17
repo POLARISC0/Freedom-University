@@ -126,7 +126,7 @@ export async function POST(request: Request) {
       } catch (error) {
         if (!request.signal.aborted) {
           console.error("walk chat stream failed", error);
-          controller.enqueue(encoder.encode(`\n\n⚠️ ${describeApiError(error, "The mentors")}`));
+          controller.enqueue(encoder.encode(`\n\n⚠️ ${describeApiError(error)}`));
         }
       } finally {
         controller.close();

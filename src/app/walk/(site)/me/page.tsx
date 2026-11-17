@@ -9,7 +9,7 @@ import { getLife } from "@/walk/server/data";
 export const metadata: Metadata = { title: "Your walk" };
 
 export default async function YourWalkPage() {
-  const user = await requireUser("/walk/me", "/walk/begin");
+  const user = await requireUser("/walk/me");
   const life = await getLife(user.id);
 
   if (!life) {

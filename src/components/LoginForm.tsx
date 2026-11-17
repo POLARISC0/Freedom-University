@@ -5,15 +5,7 @@ import { signIn, type FormState } from "@/app/actions";
 import { PASSWORD_RULES } from "@/lib/password-rules";
 import { USERNAME_RULES } from "@/lib/username";
 
-export function LoginForm({
-  next,
-  submitLabel = "Enter campus",
-  usernamePlaceholder = "satoshi_student",
-}: {
-  next: string;
-  submitLabel?: string;
-  usernamePlaceholder?: string;
-}) {
+export function LoginForm({ next }: { next: string }) {
   const [state, formAction, pending] = useActionState<FormState, FormData>(signIn, {});
   return (
     <form action={formAction} className="space-y-4 rounded-xl border border-line bg-surface p-6">
@@ -30,7 +22,7 @@ export function LoginForm({
           maxLength={24}
           pattern="[A-Za-z0-9_\-]{3,24}"
           className="w-full rounded-lg border border-line bg-bg px-3 py-2 outline-none focus:border-brand"
-          placeholder={usernamePlaceholder}
+          placeholder="your_name"
         />
         <span className="block text-xs text-muted">{USERNAME_RULES}</span>
       </label>
@@ -52,7 +44,7 @@ export function LoginForm({
         disabled={pending}
         className="w-full rounded-lg bg-brand px-4 py-2 font-medium text-brand-ink disabled:opacity-60"
       >
-        {pending ? "Signing in…" : submitLabel}
+        {pending ? "Signing in…" : "Walk into Galilee"}
       </button>
     </form>
   );

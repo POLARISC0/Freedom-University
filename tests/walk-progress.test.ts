@@ -3,6 +3,7 @@ import { hashPassword, verifyPassword } from "@/lib/password";
 import { isAcceptablePassword } from "@/lib/password-rules";
 import { hit, isLimited } from "@/lib/rate-limit";
 import { safeRedirectPath } from "@/lib/redirect";
+import { normalizeUsername } from "@/lib/username";
 import { getLesson, LESSONS, PATHS } from "@/walk/content";
 import { canMoveTo, encouragement, summarizePaths, type ProgressMap } from "@/walk/progress";
 
@@ -74,6 +75,18 @@ describe("passwords", () => {
   it("requires at least 8 characters", () => {
     expect(isAcceptablePassword("short")).toBe(false);
     expect(isAcceptablePassword("long enough")).toBe(true);
+  });
+});
+
+describe("usernames", () => {
+  it("normalises case and whitespace", () => {
+    expect(normalizeUsername("  Simon_Peter ")).toBe("simon_peter");
+  });
+  it("rejects invalid usernames", () => {
+    expect(normalizeUsername("ab")).toBeNull();
+    expect(normalizeUsername("has space")).toBeNull();
+    expect(normalizeUsername("x".repeat(25))).toBeNull();
+    expect(normalizeUsername("<script>")).toBeNull();
   });
 });
 

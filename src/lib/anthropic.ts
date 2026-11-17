@@ -25,13 +25,13 @@ export function hasAnthropicKey(): boolean {
   return Boolean(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN);
 }
 
-/** A short, student-facing message for an API failure. `who` names the AI voices, e.g. "The mentors". */
-export function describeApiError(error: unknown, who = "The professors"): string {
+/** A short, player-facing message for an API failure. */
+export function describeApiError(error: unknown): string {
   if (error instanceof Anthropic.AuthenticationError) {
-    return `${who} are not configured: check ANTHROPIC_API_KEY.`;
+    return "The mentors are not configured: check ANTHROPIC_API_KEY.";
   }
   if (error instanceof Anthropic.RateLimitError) {
-    return `${who} are busy right now (rate limited). Please try again in a minute.`;
+    return "The mentors are busy right now (rate limited). Please try again in a minute.";
   }
   if (error instanceof Anthropic.APIConnectionError) {
     return "Could not reach the AI service. Check your connection and try again.";

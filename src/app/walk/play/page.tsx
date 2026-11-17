@@ -6,7 +6,7 @@ import { getJournal, getLife, getProgressMap, getRecentCheckIns } from "@/walk/s
 export const metadata: Metadata = { title: "Galilee" };
 
 export default async function PlayPage() {
-  const user = await requireUser("/walk/play", "/walk/begin");
+  const user = await requireUser("/walk/play");
   const [progress, journal, checkIns, life] = await Promise.all([
     getProgressMap(user.id),
     getJournal(user.id),

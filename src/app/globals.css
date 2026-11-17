@@ -52,7 +52,7 @@ body {
   color: var(--ink);
 }
 
-/* Markdown rendered from professors and the news briefing. */
+/* Markdown in the mentors' chat replies. */
 .lesson-md {
   line-height: 1.65;
   overflow-wrap: anywhere;

@@ -20,7 +20,7 @@ export default async function BeginPage({ searchParams }: PageProps<"/walk/begin
           Sign in, or choose a username and password to start. Your journal and progress are saved to your account.
         </p>
       </div>
-      <LoginForm next={nextPath} submitLabel="Walk into Galilee" usernamePlaceholder="your_name" />
+      <LoginForm next={nextPath} />
       <p className="text-center text-xs text-muted">
         Your Walk Journal is private to your account. There is no password reset yet, so keep your password somewhere
         safe.

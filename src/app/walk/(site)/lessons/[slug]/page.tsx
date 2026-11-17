@@ -17,7 +17,7 @@ export default async function LessonPage({ params }: PageProps<"/walk/lessons/[s
   const { slug } = await params;
   const lesson = getLesson(slug);
   if (!lesson) notFound();
-  const user = await requireUser(`/walk/lessons/${slug}`, "/walk/begin");
+  const user = await requireUser(`/walk/lessons/${slug}`);
   const progress = await getProgressMap(user.id);
   const spots = buildCapernaum().spots;
   const spotLabels = Object.fromEntries(Object.values(spots).map((s) => [s.id, s.label]));

@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
-import { todayUtc } from "@/lib/data";
 import { CHARACTERS, DAILY_VERSES, LESSONS, PATHS, verseForDay } from "@/walk/content";
 import { Portrait } from "@/walk/components/Portrait";
 import { PassageBlock, RefChips } from "@/walk/components/Scripture";
@@ -37,7 +36,7 @@ export default async function WalkHome() {
           <PassageBlock passage={fatherless} />
           <div className="rounded-xl border border-line bg-surface p-4">
             <p className="mb-2 text-xs font-semibold tracking-wider text-gold uppercase">Today&apos;s verse</p>
-            <PassageBlock passage={verseForDay(todayUtc())} />
+            <PassageBlock passage={verseForDay(new Date().toISOString().slice(0, 10))} />
           </div>
         </div>
       </section>
