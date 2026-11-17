@@ -1,0 +1,13 @@
+{
+  "name": "polaris-vending",
+  "private": true,
+  "description": "The Polaris Vending website: one static page, no build step.",
+  "type": "module",
+  "scripts": {
+    "preview": "node preview.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20.12"
+  }
+}
