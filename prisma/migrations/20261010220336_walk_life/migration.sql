@@ -1,0 +1,8 @@
+-- CreateTable
+CREATE TABLE "WalkLife" (
+    "userId" TEXT NOT NULL PRIMARY KEY,
+    "data" JSONB NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "WalkLife_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
