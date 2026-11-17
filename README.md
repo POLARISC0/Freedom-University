@@ -8,9 +8,9 @@ It's plain HTML and CSS. There's nothing to install and no build step, and it's 
 
 Nothing here puts the site online. Previewing only shows it to you.
 
-1. Open a terminal in the `polaris-vending` folder.
-   - **Mac:** open the Terminal app, type `cd ` (with a space after it), drag the `polaris-vending` folder into the window and press Enter.
-   - **Windows:** open the `polaris-vending` folder in File Explorer, click the address bar at the top, type `cmd` and press Enter.
+1. Open a terminal in the project folder (the one you unzipped, with `package.json` in it).
+   - **Mac:** open the Terminal app, type `cd ` (with a space after it), drag the project folder into the window and press Enter.
+   - **Windows:** open the project folder in File Explorer, click the address bar at the top, type `cmd` and press Enter.
 2. Type `npm run preview` and press Enter. It needs Node.js, the same program Orion uses, and nothing else.
 3. Open **http://localhost:4173** in your web browser.
 4. To see it on your phone, connect the phone to the same Wi-Fi as the computer and open the "On your phone" address the terminal shows.

@@ -1,0 +1,3 @@
+node_modules/
+# Settings with real values are never committed.
+.env
